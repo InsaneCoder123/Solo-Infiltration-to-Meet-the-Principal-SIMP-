@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.9.34622.214
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Solo Infiltration to Meet the Principal (SIMP)", "Solo Infiltration to Meet the Principal (SIMP).vcxproj", "{BB68D66E-F254-4460-977C-21140E7119DD}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+		Debug|x86 = Debug|x86
+		Release|x64 = Release|x64
+		Release|x86 = Release|x86
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{BB68D66E-F254-4460-977C-21140E7119DD}.Debug|x64.ActiveCfg = Debug|x64
+		{BB68D66E-F254-4460-977C-21140E7119DD}.Debug|x64.Build.0 = Debug|x64
+		{BB68D66E-F254-4460-977C-21140E7119DD}.Debug|x86.ActiveCfg = Debug|Win32
+		{BB68D66E-F254-4460-977C-21140E7119DD}.Debug|x86.Build.0 = Debug|Win32
+		{BB68D66E-F254-4460-977C-21140E7119DD}.Release|x64.ActiveCfg = Release|x64
+		{BB68D66E-F254-4460-977C-21140E7119DD}.Release|x64.Build.0 = Release|x64
+		{BB68D66E-F254-4460-977C-21140E7119DD}.Release|x86.ActiveCfg = Release|Win32
+		{BB68D66E-F254-4460-977C-21140E7119DD}.Release|x86.Build.0 = Release|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {E219B693-4CF3-4436-B9D3-3F2979C34862}
+	EndGlobalSection
+EndGlobal
