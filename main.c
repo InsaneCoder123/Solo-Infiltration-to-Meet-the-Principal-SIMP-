@@ -10,10 +10,10 @@
 #define ANSI_COLOR_YELLOW  "\x1b[33m"
 #define ANSI_COLOR_BLUE    "\x1b[34m"
 #define ANSI_COLOR_MAGENTA "\x1b[35m"
-#define ANSI_COLOR_CYAN    "\x1b[36m"
+#define ANSI_COLOR_CYAN    "\x1b[36m"s
 #define ANSI_COLOR_RESET   "\x1b[0m"
 
-#define SCREEN_WIDTH 70
+#define SCREEN_WIDTH 71
 #define SCREEN_HEIGHT 21
 
 #define CAMERA_WIDTH 41
@@ -56,6 +56,12 @@ typedef struct {
 	Items* inventory;
 	position position;
 } Player;
+
+typedef struct {
+	position coordinate;
+	int id;
+	int type;
+} NPC;
 
 typedef struct {
 	Keybinds keybinds;
