@@ -53,6 +53,7 @@ typedef struct {
 	playerStats stats;
 	Items* inventory;
 	position position;
+	int itemsNumber;
 } Player;
 
 typedef struct {
@@ -342,6 +343,15 @@ void movePlayer(Game* game, Player* player) {
 	}
 }
 
+void addItemInInventory(Player *player, int id, int type, int quantity) {
+
+	player->inventory = (Items*)realloc(player->inventory, sizeof(Items)*(player->itemsNumber+1));
+	++player->itemsNumber;
+	(player->inventory+(player->itemsNumber-1))->id = id;
+	(player->inventory + (player->itemsNumber - 1))->type = type;
+	(player->inventory + (player->itemsNumber - 1))->quantity = quantity;
+}
+
 void updateTime(Game *game) {
 	game->timeInSeconds = 540 + (time(NULL) - game->timeWhenGameStarted) * 3;
 	game->timeInMinutes = game->timeInSeconds / 60;
@@ -357,7 +367,7 @@ void debugMode(Player* player, Game* game) {
 }
 
 int main(void) {
-	Player player = { {185, 152, 553}, {NULL}, {20, 10, 0} };
+	Player player = { {185, 152, 553}, (Items*)malloc(sizeof(Items)*0), {20, 10, 0}, 0};
 	Game game = { {DEFAULT_MOVE_UP, DEFAULT_MOVE_LEFT, DEFAULT_MOVE_DOWN, DEFAULT_MOVE_RIGHT}, 0, {0, 0}, time(NULL), 0, 1};
 	int gameRunning = 1;
 	updateCameraRelativeCoordinate(&game, &player);
