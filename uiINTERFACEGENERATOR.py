@@ -1,9 +1,9 @@
-interfaceData = """ MH  000    INV               ,
- PHP 000    -$$$$$$$$$$$$$$$$$,
- CHA 000    -$$$$$$$$$$$$$$$$$,
+interfaceData = """ MH  mmm    INV               ,
+ PHP ppp    -$$$$$$$$$$$$$$$$$,
+ CHA ccc    -$$$$$$$$$$$$$$$$$,
             -$$$$$$$$$$$$$$$$$,
- TIME 00:00 -$$$$$$$$$$$$$$$$$,
- DAY  0     -$$$$$$$$$$$$$$$$$,"""
+ TIME nn:ss -$$$$$$$$$$$$$$$$$,
+ DAY  d     -$$$$$$$$$$$$$$$$$,"""
 
 # mh, mh, mh, php, php, php, cha, cha, cha, ti
 
@@ -15,6 +15,13 @@ interfaceData = """ MH  000    INV               ,
 #00 - Character Representation
 #00 - Binded Variable
 #0 - Number
+
+#mmm
+#ppp
+#ccc
+
+#nn:ss
+#d
 
 charsToDecimal = {
     'A': 1,
@@ -48,7 +55,13 @@ charsToDecimal = {
     ' ': 29,
     '0': 50,
     '$': 51,
-    '&': 52
+    '&': 52,
+    'm': 53,
+    'p': 54,
+    'c': 55,
+    'n': 56,
+    's': 57,
+    'd': 58
 }
 
 maxWidth = 0

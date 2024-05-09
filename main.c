@@ -10,10 +10,10 @@
 #define ANSI_COLOR_YELLOW  "\x1b[33m"
 #define ANSI_COLOR_BLUE    "\x1b[34m"
 #define ANSI_COLOR_MAGENTA "\x1b[35m"
-#define ANSI_COLOR_CYAN    "\x1b[36m"s
+#define ANSI_COLOR_CYAN    "\x1b[36m"
 #define ANSI_COLOR_RESET   "\x1b[0m"
 
-#define SCREEN_WIDTH 71
+#define SCREEN_WIDTH 70
 #define SCREEN_HEIGHT 21
 
 #define CAMERA_WIDTH 41
@@ -34,7 +34,6 @@ typedef struct {
 	int mentalHealth;
 	int Pesos;
 	int Charisma;
-	int Grades;
 } playerStats;
 
 typedef struct {
@@ -173,6 +172,8 @@ void renderUI(Game *game, Player* player) {
 	int userInterfacePointerX = 0;
 	int userInterfacePointerY = 0;
 
+	int dataPointer = 0;
+
 	for (int screenY = 0; screenY < SCREEN_HEIGHT; screenY++) {
 		for (int screenX = 0; screenX < SCREEN_WIDTH; screenX++) {
 			updateCameraRelativeCoordinate(game, player);
@@ -197,14 +198,102 @@ void renderUI(Game *game, Player* player) {
 			if (screenX >= CAMERA_WIDTH) {
 				if (screenY < TOTAL_HEIGHT_UI) {
 					int currentInterfaceIndex = calculateIndexFromCoordinate(userInterfacePointerX, userInterfacePointerY, TOTAL_WIDTH_UI);
-					if (retrieveUIData()[currentInterfaceIndex] % 100 == 50) {
-
-					}
+					switch (retrieveUIData()[currentInterfaceIndex] % 100) {
+						case 53:
+							switch (dataPointer) {
+								case 0:
+									printf("%d", player->stats.mentalHealth / 100);
+									++userInterfacePointerX;
+									++dataPointer;
+									continue;
+								case 1:
+									printf("%d", (player->stats.mentalHealth % 100) / 10);
+									++userInterfacePointerX;
+									++dataPointer;
+									continue;
+								case 2:
+									printf("%d", player->stats.mentalHealth % 10);
+									dataPointer = 0;
+									++userInterfacePointerX;
+									continue;
+								}
+							break;
+						case 54:
+							switch (dataPointer) {
+							case 0:
+								printf("%d", player->stats.Pesos / 100);
+								++userInterfacePointerX;
+								++dataPointer;
+								continue;
+							case 1:
+								printf("%d", (player->stats.Pesos % 100) / 10);
+								++userInterfacePointerX;
+								++dataPointer;
+								continue;
+							case 2:
+								printf("%d", player->stats.Pesos % 10);
+								dataPointer = 0;
+								++userInterfacePointerX;
+								continue;
+							}
+							break;
+						case 55:
+							switch (dataPointer) {
+							case 0:
+								printf("%d", player->stats.Charisma / 100);
+								++userInterfacePointerX;
+								++dataPointer;
+								continue;
+							case 1:
+								printf("%d", (player->stats.Charisma % 100) / 10);
+								++userInterfacePointerX;
+								++dataPointer;
+								continue;
+							case 2:
+								printf("%d", player->stats.Charisma % 10);
+								dataPointer = 0;
+								++userInterfacePointerX;
+								continue;
+							}
+							break;
+						case 56:
+							switch (dataPointer) {
+							case 0:
+								printf("%d", game->timeInMinutes / 10);
+								++userInterfacePointerX;
+								++dataPointer;
+								continue;
+							case 1:
+								printf("%d", game->timeInMinutes % 10);
+								dataPointer = 0;
+								++userInterfacePointerX;
+								continue;
+							}
+							break;
+						case 57:
+							switch (dataPointer) {
+							case 0:
+								printf("%d", (game->timeInSeconds%60) / 10);
+								++userInterfacePointerX;
+								++dataPointer;
+								continue;
+							case 1:
+								printf("%d", (game->timeInSeconds%60) % 10);
+								dataPointer = 0;
+								++userInterfacePointerX;
+								continue;
+							}
+							break;
+						case 58:
+							printf("%d", game->day);
+							++userInterfacePointerX;
+							continue;
+						}
 					printf("%c", intToChar(extractInterfaceData(currentInterfaceIndex)));
 					++userInterfacePointerX;
+					}
 				}
 			}
-		}
 		printf("\n");
 		++screenPointerY;
 		++userInterfacePointerY;
@@ -263,12 +352,13 @@ void debugMode(Player* player, Game* game) {
 	int relativeTopLeftCoordinate[2] = { player->position.x - (CAMERA_WIDTH - 1) / 2, player->position.y - (CAMERA_HEIGHT - 1) / 2 };
 	printf("Player Absolute Coordinate: [%d, %d]\n", player->position.x, player->position.y);
 	printf("Camera Relative Coordinate: [%d, %d]\n", relativeTopLeftCoordinate[0], relativeTopLeftCoordinate[1]);
+	printf("Player Mental Health: %d\n", player->stats.mentalHealth);
 	printf("Time: %d%d:%d%d\n", game->timeInMinutes / 10, game->timeInMinutes % 10, game->timeInSeconds % 60 / 10, (game->timeInSeconds % 60) % 10);
 	printf("Day:  %d", game->day);
 }
 
 int main(void) {
-	Player player = { {100, 100, 100, 100}, {NULL}, {20, 10, 0} };
+	Player player = { {185, 152, 553}, {NULL}, {20, 10, 0} };
 	Game game = { {DEFAULT_MOVE_UP, DEFAULT_MOVE_LEFT, DEFAULT_MOVE_DOWN, DEFAULT_MOVE_RIGHT}, 0, {0, 0}, time(NULL), 0, 1};
 	int gameRunning = 1;
 	updateCameraRelativeCoordinate(&game, &player);
