@@ -1,6 +1,5 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <conio.h>
 #include <time.h>
 
 #include "mapData.c"
@@ -13,7 +12,7 @@
 #define ANSI_COLOR_CYAN    "\x1b[36m"
 #define ANSI_COLOR_RESET   "\x1b[0m"
 
-#define SCREEN_WIDTH 70
+#define SCREEN_WIDTH 68
 #define SCREEN_HEIGHT 21
 
 #define CAMERA_WIDTH 41
@@ -367,7 +366,7 @@ int main(void) {
 	while (gameRunning == 1) {
 		updateTime(&game);
 		renderUI(&game, &player);
-		debugMode(&player, &game);
+		//debugMode(&player, &game);
 		movePlayer(&game, &player);
 		system("cls");
 	}

@@ -1,9 +1,25 @@
-interfaceData = """ MH  mmm    INV               ,
- PHP ppp    -$$$$$$$$$$$$$$$$$,
- CHA ccc    -$$$$$$$$$$$$$$$$$,
-            -$$$$$$$$$$$$$$$$$,
- TIME nn:ss -$$$$$$$$$$$$$$$$$,
- DAY  d     -$$$$$$$$$$$$$$$$$,"""
+interfaceData = """ MH  mmm                    ,
+ PHP ppp                    ,
+ CHA ccc                    ,
+                            ,
+ TIME nn:ss                 ,
+ DAY  d                     ,
+                            ,
+ INVENTORY                  ,
+ -                          ,
+ -                          ,
+ -                          ,
+ -                          ,
+ -                          ,
+ -                          ,
+ -                          ,
+ -                          ,
+ -                          ,
+ -                          ,
+ -                          ,
+ -                          ,
+ -                          ,
+ -"""
 
 # mh, mh, mh, php, php, php, cha, cha, cha, ti
 
