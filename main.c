@@ -46,12 +46,13 @@ typedef struct {
 	int id;
 	int type;
 	int quantity;
+	int statModifier;
 } Items;
 
 
 typedef struct {
 	playerStats stats;
-	Items* inventory;
+	Items inventory[13];
 	position position;
 	int itemsNumber;
 } Player;
@@ -70,6 +71,7 @@ typedef struct {
 	int timeInSeconds;
 	int timeInMinutes;
 	int day;
+	NPC *npcList;
 } Game;
 
 int isPlayerInPosition(Player* player, int x, int y, int x2, int y2) {
@@ -318,9 +320,20 @@ int canPlayerMoveThere(Player* player, Game* game, int x, int y) {
 	return 1;
 }
 
+void addItemInInventory(Player* player, int id, int type, int statModifier, int quantity) {
+	player->inventory[player->itemsNumber - 1].id = id;
+	player->inventory[player->itemsNumber - 1].type = type;
+	player->inventory[player->itemsNumber - 1].statModifier = statModifier;
+	player->inventory[player->itemsNumber - 1].quantity = quantity;
+	++(player->itemsNumber);
+}
+
 
 void movePlayer(Game* game, Player* player) {
 	char userInput = _getch();
+	if (userInput == 'l') {
+		addItemInInventory(player, 1, 1, 1, 1);
+	}
 	if (userInput == game->keybinds.moveUp) {
 		if (canPlayerMoveThere(player, game, 0, -1) != 0) {
 			changeposition(player, 0, -1, game->sceneID);
@@ -343,14 +356,6 @@ void movePlayer(Game* game, Player* player) {
 	}
 }
 
-void addItemInInventory(Player *player, int id, int type, int quantity) {
-
-	player->inventory = (Items*)realloc(player->inventory, sizeof(Items)*(player->itemsNumber+1));
-	++player->itemsNumber;
-	(player->inventory+(player->itemsNumber-1))->id = id;
-	(player->inventory + (player->itemsNumber - 1))->type = type;
-	(player->inventory + (player->itemsNumber - 1))->quantity = quantity;
-}
 
 void updateTime(Game *game) {
 	game->timeInSeconds = 540 + (time(NULL) - game->timeWhenGameStarted) * 3;
@@ -367,8 +372,8 @@ void debugMode(Player* player, Game* game) {
 }
 
 int main(void) {
-	Player player = { {185, 152, 553}, (Items*)malloc(sizeof(Items)*0), {20, 10, 0}, 0};
-	Game game = { {DEFAULT_MOVE_UP, DEFAULT_MOVE_LEFT, DEFAULT_MOVE_DOWN, DEFAULT_MOVE_RIGHT}, 0, {0, 0}, time(NULL), 0, 1};
+	Player player = { {185, 152, 553}, {0, 0, 0}, {2, 21, 0}, 0 };
+	Game game = { {DEFAULT_MOVE_UP, DEFAULT_MOVE_LEFT, DEFAULT_MOVE_DOWN, DEFAULT_MOVE_RIGHT}, 0, {0, 0}, time(NULL), 0, 1, 1, (NPC*)malloc(sizeof(NPC)*0)};
 	int gameRunning = 1;
 	updateCameraRelativeCoordinate(&game, &player);
 	printf("\33[?25l"); // Hide the cursor
@@ -376,7 +381,7 @@ int main(void) {
 	while (gameRunning == 1) {
 		updateTime(&game);
 		renderUI(&game, &player);
-		//debugMode(&player, &game);
+		debugMode(&player, &game);
 		movePlayer(&game, &player);
 		system("cls");
 	}
