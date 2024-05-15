@@ -92,11 +92,9 @@ for n in interfaceData:
         py += 1
         px = 0
         continue
-    if ptotal % 5 == 0:
-        print("")
 
     if n in charsToDecimal:
-        print("1{}{}, ".format(int(charsToDecimal[n] / 10), charsToDecimal[n] % 10), end="")
+        print("{}{}".format(int(charsToDecimal[n] / 10), charsToDecimal[n] % 10), end="")
 
     px += 1
     ptotal += 1
