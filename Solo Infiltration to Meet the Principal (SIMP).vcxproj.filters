@@ -22,4 +22,8 @@
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
+  <ItemGroup>
+    <Text Include="mapData.txt" />
+    <Text Include="interfaceData.txt" />
+  </ItemGroup>
 </Project>
