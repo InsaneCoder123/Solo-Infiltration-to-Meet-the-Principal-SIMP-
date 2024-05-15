@@ -128,9 +128,9 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="main.c" />
-    <ClCompile Include="mapData.c" />
   </ItemGroup>
   <ItemGroup>
+    <Text Include="Documentation.txt" />
     <Text Include="interfaceData.txt" />
     <Text Include="mapData.txt" />
   </ItemGroup>
