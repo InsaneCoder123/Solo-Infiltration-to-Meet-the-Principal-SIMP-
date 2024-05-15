@@ -2,6 +2,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <time.h>
 
 #define ANSI_COLOR_RED     "\x1b[31m"
@@ -29,7 +30,7 @@
 #define DEFAULT_MOVE_DOWN 's'
 #define DEFAULT_MOVE_RIGHT 'd'
 
-#define MAP_DATASIZE 2
+#define MAP_DATASIZE 3
 #define UI_DATASIZE 2
 
 typedef struct {
@@ -37,6 +38,11 @@ typedef struct {
 	int y;
 	int areaID;
 } position;
+
+typedef struct {
+	char* dialouge;
+	int currentOption;
+} ActivePrompt;
 
 typedef struct {
 	int mentalHealth;
@@ -69,8 +75,8 @@ typedef struct {
 typedef struct {
 	position coordinate;
 	int id;
-	int type;
 } NPC;
+
 
 typedef struct {
 	Keybinds keybinds;
@@ -83,6 +89,8 @@ typedef struct {
 	NPC *npcList;
 	char* mapData;
 	char* interfaceData;
+	int numberOfNPC;
+	ActivePrompt activePrompt;
 } Game;
 
 int isPlayerInPosition(Player* player, int x, int y, int x2, int y2) {
@@ -112,6 +120,27 @@ int calculateIndexFromCoordinate(int x, int y, int width, int dataSize, int data
 	return (y * width * dataSize) + (x * dataSize) + dataIndex;
 }
 
+void updateCurrentActivePrompt(Game *game, char *dialouge, int choice) {
+
+	size_t newSize = strlen(dialouge) + 1;
+	char *temp = (char*)realloc(game->activePrompt.dialouge, newSize);
+	if (temp == NULL) {
+		fprintf(stderr, "Memory allocation failed\n");
+		return;
+	}
+	
+	game->activePrompt.dialouge = temp;
+	strcpy(game->activePrompt.dialouge, dialouge);
+	game->activePrompt.currentOption = choice;
+}
+
+void spawnNPC(Game* game, int x, int y, int id) {
+	game->npcList[game->numberOfNPC].coordinate.x = x;
+	game->npcList[game->numberOfNPC].coordinate.x = y;
+	game->npcList[game->numberOfNPC].id = id;
+	game->mapData[calculateIndexFromCoordinate(x, y, TOTAL_WIDTH_MAP, MAP_DATASIZE, 0)] = id + '0';
+	game->mapData[calculateIndexFromCoordinate(x, y, TOTAL_WIDTH_MAP, MAP_DATASIZE, 2)] = 0 + '0';
+}
 
 void renderUI(Game *game, Player* player) {
 	int screenPointerX = 0;
@@ -119,8 +148,6 @@ void renderUI(Game *game, Player* player) {
 
 	int userInterfacePointerX = 0;
 	int userInterfacePointerY = 0;
-
-	int dataPointer = 0;
 
 	for (int screenY = 0; screenY < SCREEN_HEIGHT; screenY++) {
 		for (int screenX = 0; screenX < SCREEN_WIDTH; screenX++) {
@@ -138,8 +165,11 @@ void renderUI(Game *game, Player* player) {
 					++screenPointerX;
 					continue;
 				}
-				int test = game->mapData[calculateIndexFromCoordinate(game->relativeCameraCoordinate[0] + screenPointerX, game->relativeCameraCoordinate[1] + screenPointerY,
-					TOTAL_WIDTH_MAP, MAP_DATASIZE, 1)];
+				if (game->mapData[calculateIndexFromCoordinate(game->relativeCameraCoordinate[0] + screenPointerX, game->relativeCameraCoordinate[1] + screenPointerY, TOTAL_WIDTH_MAP, MAP_DATASIZE, 0)] - '0' == 7) {
+					printf(ANSI_COLOR_BLUE "@" ANSI_COLOR_RESET);
+					++screenPointerX;
+					continue;
+				}
 				printf("%c", mapTypeToChar(game->mapData[calculateIndexFromCoordinate(game->relativeCameraCoordinate[0] + screenPointerX, game->relativeCameraCoordinate[1] + screenPointerY,
 					TOTAL_WIDTH_MAP, MAP_DATASIZE, 1)] - '0'));
 				++screenPointerX;
@@ -188,6 +218,8 @@ void renderUI(Game *game, Player* player) {
 		screenPointerX = 0;
 		userInterfacePointerX = 0;
 	}
+
+	printf("%s", game->activePrompt.dialouge);
 }
 
 void changeposition(Player* player, int x, int y, int areaID) {
@@ -196,11 +228,16 @@ void changeposition(Player* player, int x, int y, int areaID) {
 	player->position.areaID = areaID;
 }
 
+void interactWithNPC(Game *game) {
+	updateCurrentActivePrompt(game, "What do you want child?", 0);
+}
+
 int canPlayerMoveThere(Player* player, Game* game, int x, int y) {
-	// Type 0 - Can move
-	// Type 1 - Can't Move
-	// Type n will eventually check if player has item, then he can move
-	if (game->mapData[calculateIndexFromCoordinate(player->position.x + x, player->position.y + y, TOTAL_WIDTH_MAP, MAP_DATASIZE, 1)] - '0' == 1) {
+	int indexOfObjectAhead = calculateIndexFromCoordinate(player->position.x + x, player->position.y + y, TOTAL_WIDTH_MAP, MAP_DATASIZE, 0);
+	if (game->mapData[indexOfObjectAhead + 2] - '0' == 0) {
+		if (game->mapData[indexOfObjectAhead] - '0' == 7) {
+			interactWithNPC(game);
+		}
 		return 0;
 	}
 	return 1;
@@ -215,34 +252,35 @@ void addItemInInventory(Player* player, int id, int type, int statModifier, int 
 }
 
 
-void readInput(Game* game, Player* player) {
+int readInput(Game* game, Player* player) {
 	char userInput = _getch();
-	if (userInput == 'l') {
-		addItemInInventory(player, 1, 1, 1, 1);
-	}
-	/*if (userInput == 'b') {
-		printf(ANSI_COLOR_BLUE "\n[%d]\n" ANSI_COLOR_RESET, game->mapData[calculateIndexFromCoordinate(player->position.x, player->position.y, TOTAL_WIDTH_MAP, MAP_DATASIZE, 1)]);
-	}*/
 	if (userInput == game->keybinds.moveUp) {
-		if (canPlayerMoveThere(player, game, 0, -1) != 0) {
+		if (canPlayerMoveThere(player, game, 0, -1) == 1) {
 			changeposition(player, 0, -1, game->sceneID);
 		}
 	}
 	else if (userInput == game->keybinds.moveLeft) {
-		if (canPlayerMoveThere(player, game, -1, 0) != 0) {
+		if (canPlayerMoveThere(player, game, -1, 0) == 1) {
 			changeposition(player, -1, 0, game->sceneID);
 		}
 	}
 	else if (userInput == game->keybinds.moveDown) {
-		if (canPlayerMoveThere(player, game, 0, 1) != 0) {
+		if (canPlayerMoveThere(player, game, 0, 1) == 1) {
 			changeposition(player, 0, 1, game->sceneID);
 		}
 	}
 	else if (userInput == game->keybinds.moveRight) {
-		if (canPlayerMoveThere(player, game, 1, 0) != 0) {
+		if (canPlayerMoveThere(player, game, 1, 0) == 1) {
 			changeposition(player, 1, 0, game->sceneID);
 		}
 	}
+	if (userInput == 'l') {
+		spawnNPC(game, 10, 18, 7);
+	}
+	if (userInput == 'b') {
+		return 0;
+	}
+	return 1;
 }
 
 
@@ -281,17 +319,22 @@ int initiateDatas(Game *game) {
 int main(void) {
 	Player player = { {185, 53, 553}, {0, 0, 0}, {2, 21, 0}, 0 };
 	Game game = { {DEFAULT_MOVE_UP, DEFAULT_MOVE_LEFT, DEFAULT_MOVE_DOWN, DEFAULT_MOVE_RIGHT},
-		0, {0, 0}, time(NULL), 0, 1, 1, (NPC*)malloc(sizeof(NPC)), (char*)malloc(sizeof(char)), (char*)malloc(sizeof(char))};
-	int gameRunning = 1;
+		0, {0, 0}, time(NULL), 0, 1, 1, (NPC*)malloc(sizeof(NPC)), (char*)malloc(sizeof(char)), (char*)malloc(sizeof(char)), 0, {NULL, 0}};
 	updateCameraRelativeCoordinate(&game, &player);
+	updateCurrentActivePrompt(&game, "Objective: Meet the Principal", 0);
 	printf("\33[?25l"); // Hide the cursor
 	//printf("\33[?25h"); // Re enable cursor
 	if (initiateDatas(&game) == 0) { printf(ANSI_COLOR_RED "{No Map Data}"); return; };
-	while (gameRunning == 1) {
-		updateTime(&game);
-		renderUI(&game, &player);
-		debugMode(&player, &game);
-		readInput(&game, &player);
+
+	renderUI(&game, &player);
+	while (readInput(&game, &player) == 1) {
 		system("cls");
+		updateTime(&game);
+		//debugMode(&player, &game);
+		renderUI(&game, &player);
 	}
+	free(game.npcList);
+	free(game.interfaceData);
+	free(game.mapData);
+	free(game.activePrompt.dialouge);
 }
