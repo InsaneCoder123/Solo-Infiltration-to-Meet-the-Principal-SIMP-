@@ -39,10 +39,6 @@ typedef struct {
 	int areaID;
 } position;
 
-typedef struct {
-	char* dialouge;
-	int currentOption;
-} ActivePrompt;
 
 typedef struct {
 	int mentalHealth;
@@ -77,6 +73,15 @@ typedef struct {
 	int id;
 } NPC;
 
+typedef struct Option Option;
+
+typedef struct {
+	char* dialouge;
+	int currentOption;
+	int numberOfOptions;
+	Option* option;
+} ActivePrompt;
+
 
 typedef struct {
 	Keybinds keybinds;
@@ -86,12 +91,47 @@ typedef struct {
 	int timeInSeconds;
 	int timeInMinutes;
 	int day;
-	NPC *npcList;
+	NPC* npcList;
 	char* mapData;
 	char* interfaceData;
 	int numberOfNPC;
 	ActivePrompt activePrompt;
+	int isInteractionActive;
 } Game;
+
+typedef void (*EventAction)(Game* game, Player* player);
+struct Option{
+	EventAction eventAction;
+	char OptionText[50];
+	int id;
+};
+
+void clearActivePrompt(Game* game, Player* player);
+
+void printTest(Game *game, Player *player) {
+	game->isInteractionActive = 0;
+	clearActivePrompt(game, player);
+	game->activePrompt.option = (Option*)realloc(game->activePrompt.option, 0);
+	game->activePrompt.numberOfOptions = 0;
+}
+
+
+void AddOption(Game *game, char *dialouge, int id, void (*f)(Game, Player)) {
+	int newNumberOfOptions = game->activePrompt.numberOfOptions + 1;
+	Option* temp = (Option*)realloc(game->activePrompt.option, sizeof(Option)*newNumberOfOptions);
+	if (temp == NULL) {
+		printf(ANSI_COLOR_RED "\n[Memory Allocation Field]\n" ANSI_COLOR_RESET);
+		return;
+	}
+	game->activePrompt.option = temp;
+	game->activePrompt.numberOfOptions = newNumberOfOptions;
+
+	strncpy(game->activePrompt.option[newNumberOfOptions - 1].OptionText, dialouge, sizeof(game->activePrompt.option[newNumberOfOptions - 1].OptionText) - 1);
+	game->activePrompt.option[newNumberOfOptions - 1].OptionText[sizeof(game->activePrompt.option[newNumberOfOptions - 1].OptionText) - 1] = '\0'; // Ensure null-termination
+	game->activePrompt.option[newNumberOfOptions - 1].id = id;
+	game->activePrompt.option[newNumberOfOptions - 1].eventAction = f;
+	
+}
 
 int isPlayerInPosition(Player* player, int x, int y, int x2, int y2) {
 	if (x2 == x && y2 == y) {
@@ -125,7 +165,7 @@ void updateCurrentActivePrompt(Game *game, char *dialouge, int choice) {
 	size_t newSize = strlen(dialouge) + 1;
 	char *temp = (char*)realloc(game->activePrompt.dialouge, newSize);
 	if (temp == NULL) {
-		fprintf(stderr, "Memory allocation failed\n");
+		printf(ANSI_COLOR_RED "\n[Memory Allocation Field]\n" ANSI_COLOR_RESET);
 		return;
 	}
 	
@@ -134,12 +174,23 @@ void updateCurrentActivePrompt(Game *game, char *dialouge, int choice) {
 	game->activePrompt.currentOption = choice;
 }
 
+void clearActivePrompt(Game *game, Player *player) {
+	updateCurrentActivePrompt(game, " ", -1);
+}
+
 void spawnNPC(Game* game, int x, int y, int id) {
 	game->npcList[game->numberOfNPC].coordinate.x = x;
 	game->npcList[game->numberOfNPC].coordinate.x = y;
 	game->npcList[game->numberOfNPC].id = id;
 	game->mapData[calculateIndexFromCoordinate(x, y, TOTAL_WIDTH_MAP, MAP_DATASIZE, 0)] = id + '0';
 	game->mapData[calculateIndexFromCoordinate(x, y, TOTAL_WIDTH_MAP, MAP_DATASIZE, 2)] = 0 + '0';
+}
+
+char onOption(int currentOption, int optionID) {
+	if (currentOption == optionID) {
+		return '>';
+	}
+	return ' ';
 }
 
 void renderUI(Game *game, Player* player) {
@@ -219,7 +270,13 @@ void renderUI(Game *game, Player* player) {
 		userInterfacePointerX = 0;
 	}
 
-	printf("%s", game->activePrompt.dialouge);
+	printf("%s\n", game->activePrompt.dialouge);
+	if (game->activePrompt.option != NULL) {
+		for (int i = 0; i < game->activePrompt.numberOfOptions; i++) {
+			printf("%c %s\n", onOption(game->activePrompt.currentOption, game->activePrompt.option[i].id), 
+				game->activePrompt.option[i].OptionText);
+		}
+	}
 }
 
 void changeposition(Player* player, int x, int y, int areaID) {
@@ -230,6 +287,9 @@ void changeposition(Player* player, int x, int y, int areaID) {
 
 void interactWithNPC(Game *game) {
 	updateCurrentActivePrompt(game, "What do you want child?", 0);
+	AddOption(game, "Testddd", 0, printTest);
+	AddOption(game, "Leave", 1, printTest);
+	game->isInteractionActive = 1;
 }
 
 int canPlayerMoveThere(Player* player, Game* game, int x, int y) {
@@ -254,24 +314,37 @@ void addItemInInventory(Player* player, int id, int type, int statModifier, int 
 
 int readInput(Game* game, Player* player) {
 	char userInput = _getch();
-	if (userInput == game->keybinds.moveUp) {
-		if (canPlayerMoveThere(player, game, 0, -1) == 1) {
-			changeposition(player, 0, -1, game->sceneID);
+	if (game->isInteractionActive == 0) {
+		if (userInput == game->keybinds.moveUp) {
+			if (canPlayerMoveThere(player, game, 0, -1) == 1) {
+				changeposition(player, 0, -1, game->sceneID);
+			}
+		}
+		else if (userInput == game->keybinds.moveLeft) {
+			if (canPlayerMoveThere(player, game, -1, 0) == 1) {
+				changeposition(player, -1, 0, game->sceneID);
+			}
+		}
+		else if (userInput == game->keybinds.moveDown) {
+			if (canPlayerMoveThere(player, game, 0, 1) == 1) {
+				changeposition(player, 0, 1, game->sceneID);
+			}
+		}
+		else if (userInput == game->keybinds.moveRight) {
+			if (canPlayerMoveThere(player, game, 1, 0) == 1) {
+				changeposition(player, 1, 0, game->sceneID);
+			}
 		}
 	}
-	else if (userInput == game->keybinds.moveLeft) {
-		if (canPlayerMoveThere(player, game, -1, 0) == 1) {
-			changeposition(player, -1, 0, game->sceneID);
+	else {
+		if (userInput == game->keybinds.moveUp && game->activePrompt.currentOption != 0) {
+			game->activePrompt.currentOption -= 1;
 		}
-	}
-	else if (userInput == game->keybinds.moveDown) {
-		if (canPlayerMoveThere(player, game, 0, 1) == 1) {
-			changeposition(player, 0, 1, game->sceneID);
+		else if (userInput == game->keybinds.moveDown && game->activePrompt.currentOption != game->activePrompt.numberOfOptions - 1) {
+			game->activePrompt.currentOption += 1;
 		}
-	}
-	else if (userInput == game->keybinds.moveRight) {
-		if (canPlayerMoveThere(player, game, 1, 0) == 1) {
-			changeposition(player, 1, 0, game->sceneID);
+		else if (userInput == 'm') {
+			game->activePrompt.option[game->activePrompt.currentOption].eventAction(game, player);
 		}
 	}
 	if (userInput == 'l') {
@@ -319,9 +392,9 @@ int initiateDatas(Game *game) {
 int main(void) {
 	Player player = { {185, 53, 553}, {0, 0, 0}, {2, 21, 0}, 0 };
 	Game game = { {DEFAULT_MOVE_UP, DEFAULT_MOVE_LEFT, DEFAULT_MOVE_DOWN, DEFAULT_MOVE_RIGHT},
-		0, {0, 0}, time(NULL), 0, 1, 1, (NPC*)malloc(sizeof(NPC)), (char*)malloc(sizeof(char)), (char*)malloc(sizeof(char)), 0, {NULL, 0}};
+		0, {0, 0}, time(NULL), 0, 1, 1, (NPC*)malloc(sizeof(NPC)), (char*)malloc(sizeof(char)), (char*)malloc(sizeof(char)), 0, {NULL, 0, 0, NULL}, 0};
 	updateCameraRelativeCoordinate(&game, &player);
-	updateCurrentActivePrompt(&game, "Objective: Meet the Principal", 0);
+	updateCurrentActivePrompt(&game, "Objective: Meet the Principal", -1);
 	printf("\33[?25l"); // Hide the cursor
 	//printf("\33[?25h"); // Re enable cursor
 	if (initiateDatas(&game) == 0) { printf(ANSI_COLOR_RED "{No Map Data}"); return; };
