@@ -69,8 +69,15 @@ typedef struct {
 } Player;
 
 typedef struct {
+	char** dialouges;
+	int dialougeID;
+	int pointedDialouge;
+} Dialouge;
+
+typedef struct {
 	position coordinate;
 	int id;
+	Dialouge dialouge;
 } NPC;
 
 typedef struct Option Option;
@@ -79,44 +86,68 @@ typedef struct {
 	char* dialouge;
 	int currentOption;
 	int numberOfOptions;
+	int dialougeStage;
 	Option* option;
 } ActivePrompt;
+
+typedef struct {
+	int timeInSeconds;
+	int timeInMinutes;
+	int day;
+	long timeWhenGameStarted;
+} GameTime;
 
 
 typedef struct {
 	Keybinds keybinds;
 	int sceneID;
 	int relativeCameraCoordinate[2];
-	long timeWhenGameStarted;
-	int timeInSeconds;
-	int timeInMinutes;
-	int day;
+	GameTime gameTime;
 	NPC* npcList;
 	char* mapData;
 	char* interfaceData;
 	int numberOfNPC;
 	ActivePrompt activePrompt;
 	int isInteractionActive;
+	NPC currentActiveNPC;
 } Game;
 
-typedef void (*EventAction)(Game* game, Player* player);
+typedef void (*EventAction)(Game* game, Player* player, int dialougeID);
 struct Option{
 	EventAction eventAction;
 	char OptionText[50];
 	int id;
+	int pointedDialougeID;
 };
 
-void clearActivePrompt(Game* game, Player* player);
+void AddOption(Game* game, char* dialouge, int id, int pointedDialougeID, void (*f)(Game, Player));
+void updateCurrentActivePrompt(Game* game, char* dialouge, int choice, int dialougeStage);
 
-void printTest(Game *game, Player *player) {
-	game->isInteractionActive = 0;
-	clearActivePrompt(game, player);
+void updateCurrentActiveNPC(Game *game, NPC activeNPC) {
+	game->currentActiveNPC = activeNPC;
+}
+
+void clearPromptAndOptions(Game *game, Player* player) {
+	updateCurrentActivePrompt(game, " ", -1, 0);
 	game->activePrompt.option = (Option*)realloc(game->activePrompt.option, 0);
 	game->activePrompt.numberOfOptions = 0;
 }
 
+void exitInteractionWithNPC(Game* game, Player* player, int dialougeID) {
+	updateCurrentActivePrompt(game, " ", -1, 0);
+	game->activePrompt.option = (Option*)realloc(game->activePrompt.option, 0);
+	game->activePrompt.numberOfOptions = 0;
+	game->isInteractionActive = 0;
+}
 
-void AddOption(Game *game, char *dialouge, int id, void (*f)(Game, Player)) {
+void goToDialougeAndOptions(Game *game, Player *player, int dialougeID) {
+	clearPromptAndOptions(game, player);
+	updateCurrentActivePrompt(game, game->currentActiveNPC.dialouge.dialouges[dialougeID], 0, 1);
+	AddOption(game, "Leave", 0, -1, exitInteractionWithNPC);
+}
+
+
+void AddOption(Game *game, char *dialouge, int id, int pointedDialougeID, void (*f)(Game, Player)) {
 	int newNumberOfOptions = game->activePrompt.numberOfOptions + 1;
 	Option* temp = (Option*)realloc(game->activePrompt.option, sizeof(Option)*newNumberOfOptions);
 	if (temp == NULL) {
@@ -129,11 +160,12 @@ void AddOption(Game *game, char *dialouge, int id, void (*f)(Game, Player)) {
 	strncpy(game->activePrompt.option[newNumberOfOptions - 1].OptionText, dialouge, sizeof(game->activePrompt.option[newNumberOfOptions - 1].OptionText) - 1);
 	game->activePrompt.option[newNumberOfOptions - 1].OptionText[sizeof(game->activePrompt.option[newNumberOfOptions - 1].OptionText) - 1] = '\0'; // Ensure null-termination
 	game->activePrompt.option[newNumberOfOptions - 1].id = id;
+	game->activePrompt.option[newNumberOfOptions - 1].pointedDialougeID = pointedDialougeID;
 	game->activePrompt.option[newNumberOfOptions - 1].eventAction = f;
 	
 }
 
-int isPlayerInPosition(Player* player, int x, int y, int x2, int y2) {
+int isTwoCoordinatesTheSame(int x, int y, int x2, int y2) {
 	if (x2 == x && y2 == y) {
 		return 1;
 	}
@@ -150,6 +182,13 @@ char intToChar(int n) {
 	return uiArr[n-1];
 }
 
+NPC findNPCwithCoordinate(Game *game, int x, int y) {
+	for (int i = 0; i < game->numberOfNPC; i++) {
+		if (isTwoCoordinatesTheSame(game->npcList[i].coordinate.x, game->npcList[i].coordinate.y, x, y)) {
+			return game->npcList[i];
+		}
+	}
+}
 
 void updateCameraRelativeCoordinate(Game *game, Player *player) {
 	game->relativeCameraCoordinate[0] = player->position.x - (CAMERA_WIDTH - 1) / 2;
@@ -160,7 +199,7 @@ int calculateIndexFromCoordinate(int x, int y, int width, int dataSize, int data
 	return (y * width * dataSize) + (x * dataSize) + dataIndex;
 }
 
-void updateCurrentActivePrompt(Game *game, char *dialouge, int choice) {
+void updateCurrentActivePrompt(Game *game, char *dialouge, int choice, int dialougeStage) {
 
 	size_t newSize = strlen(dialouge) + 1;
 	char *temp = (char*)realloc(game->activePrompt.dialouge, newSize);
@@ -170,20 +209,30 @@ void updateCurrentActivePrompt(Game *game, char *dialouge, int choice) {
 	}
 	
 	game->activePrompt.dialouge = temp;
+	game->activePrompt.dialougeStage = dialougeStage;
 	strcpy(game->activePrompt.dialouge, dialouge);
 	game->activePrompt.currentOption = choice;
 }
 
-void clearActivePrompt(Game *game, Player *player) {
-	updateCurrentActivePrompt(game, " ", -1);
-}
 
-void spawnNPC(Game* game, int x, int y, int id) {
-	game->npcList[game->numberOfNPC].coordinate.x = x;
-	game->npcList[game->numberOfNPC].coordinate.x = y;
-	game->npcList[game->numberOfNPC].id = id;
+void spawnNPC(Game* game, int x, int y, int id, char **dialouges, int numberOfDialouges) {
+	NPC *lastFreeSpaceInNPCList = &game->npcList[game->numberOfNPC];
+	lastFreeSpaceInNPCList->coordinate.x = x;
+	lastFreeSpaceInNPCList->coordinate.y = y;
+	lastFreeSpaceInNPCList->id = id;
+	lastFreeSpaceInNPCList->dialouge.dialouges = (char**)malloc(numberOfDialouges*sizeof(char*));
+	int dialougeIdAssignment = 0;
+	for (int i = 0; i < numberOfDialouges; i++) {
+		lastFreeSpaceInNPCList->dialouge.dialouges[i] = (char*)malloc((strlen(dialouges[i])+1) * sizeof(char));
+		lastFreeSpaceInNPCList->dialouge.dialougeID = dialougeIdAssignment++;
+		strcpy(lastFreeSpaceInNPCList->dialouge.dialouges[i], dialouges[i]);
+	}
+
+
 	game->mapData[calculateIndexFromCoordinate(x, y, TOTAL_WIDTH_MAP, MAP_DATASIZE, 0)] = id + '0';
 	game->mapData[calculateIndexFromCoordinate(x, y, TOTAL_WIDTH_MAP, MAP_DATASIZE, 2)] = 0 + '0';
+
+	++game->numberOfNPC;
 }
 
 char onOption(int currentOption, int optionID) {
@@ -206,7 +255,7 @@ void renderUI(Game *game, Player* player) {
 
 			//Game Screen Rendering
 			if (screenX < CAMERA_WIDTH) {
-				if (isPlayerInPosition(player, (CAMERA_WIDTH-1)/2, (CAMERA_HEIGHT-1)/2, screenPointerX, screenPointerY)) {
+				if (isTwoCoordinatesTheSame((CAMERA_WIDTH-1)/2, (CAMERA_HEIGHT-1)/2, screenPointerX, screenPointerY)) {
 					printf("@");
 					++screenPointerX;
 					continue;
@@ -246,15 +295,15 @@ void renderUI(Game *game, Player* player) {
 							userInterfacePointerX += 3;
 							continue;
 						case 56:
-							printf("%02d", game->timeInMinutes);
+							printf("%02d", game->gameTime.timeInMinutes);
 							userInterfacePointerX += 2;
 							continue;
 						case 57:
-							printf("%02d", game->timeInSeconds % 60);
+							printf("%02d", game->gameTime.timeInSeconds % 60);
 							userInterfacePointerX += 2;
 							continue;
 						case 58:
-							printf("%d", game->day);
+							printf("%d", game->gameTime.day);
 							++userInterfacePointerX;
 							continue;
 						}
@@ -286,9 +335,9 @@ void changeposition(Player* player, int x, int y, int areaID) {
 }
 
 void interactWithNPC(Game *game) {
-	updateCurrentActivePrompt(game, "What do you want child?", 0);
-	AddOption(game, "Testddd", 0, printTest);
-	AddOption(game, "Leave", 1, printTest);
+	updateCurrentActivePrompt(game, game->currentActiveNPC.dialouge.dialouges[0], 0, 0);
+	AddOption(game, "Where is the Principal?", 0, 1, goToDialougeAndOptions);
+	AddOption(game, "Leave", 1, -1, exitInteractionWithNPC);
 	game->isInteractionActive = 1;
 }
 
@@ -296,6 +345,7 @@ int canPlayerMoveThere(Player* player, Game* game, int x, int y) {
 	int indexOfObjectAhead = calculateIndexFromCoordinate(player->position.x + x, player->position.y + y, TOTAL_WIDTH_MAP, MAP_DATASIZE, 0);
 	if (game->mapData[indexOfObjectAhead + 2] - '0' == 0) {
 		if (game->mapData[indexOfObjectAhead] - '0' == 7) {
+			updateCurrentActiveNPC(game, findNPCwithCoordinate(game, player->position.x + x, player->position.y + y));
 			interactWithNPC(game);
 		}
 		return 0;
@@ -304,10 +354,11 @@ int canPlayerMoveThere(Player* player, Game* game, int x, int y) {
 }
 
 void addItemInInventory(Player* player, int id, int type, int statModifier, int quantity) {
-	player->inventory[player->itemsNumber - 1].id = id;
-	player->inventory[player->itemsNumber - 1].type = type;
-	player->inventory[player->itemsNumber - 1].statModifier = statModifier;
-	player->inventory[player->itemsNumber - 1].quantity = quantity;
+	Items lastEmptySpotInventory = player->inventory[player->itemsNumber - 1];
+	lastEmptySpotInventory.id = id;
+	lastEmptySpotInventory.type = type;
+	lastEmptySpotInventory.statModifier = statModifier;
+	lastEmptySpotInventory.quantity = quantity;
 	++(player->itemsNumber);
 }
 
@@ -343,12 +394,17 @@ int readInput(Game* game, Player* player) {
 		else if (userInput == game->keybinds.moveDown && game->activePrompt.currentOption != game->activePrompt.numberOfOptions - 1) {
 			game->activePrompt.currentOption += 1;
 		}
-		else if (userInput == 'm') {
-			game->activePrompt.option[game->activePrompt.currentOption].eventAction(game, player);
+		else if (userInput == ' ') {
+			Option currentOption = game->activePrompt.option[game->activePrompt.currentOption];
+			currentOption.eventAction(game, player, currentOption.pointedDialougeID);
 		}
 	}
 	if (userInput == 'l') {
-		spawnNPC(game, 10, 18, 7);
+		char *npcDialouges[3] = {'\0'};
+		npcDialouges[0] = "What do you want Child?";
+		npcDialouges[1] = "You need to give me this specific item first before I tell you.";
+		npcDialouges[2] = "LOL AHAHAH";
+		spawnNPC(game, 10, 18, 7, npcDialouges, 3);
 	}
 	if (userInput == 'b') {
 		return 0;
@@ -358,8 +414,8 @@ int readInput(Game* game, Player* player) {
 
 
 void updateTime(Game *game) {
-	game->timeInSeconds = 540 + (time(NULL) - game->timeWhenGameStarted) * 3;
-	game->timeInMinutes = game->timeInSeconds / 60;
+	game->gameTime.timeInSeconds = 540 + (time(NULL) - game->gameTime.timeWhenGameStarted) * 3;
+	game->gameTime.timeInMinutes = game->gameTime.timeInSeconds / 60;
 }
 
 void debugMode(Player* player, Game* game) {
@@ -367,8 +423,8 @@ void debugMode(Player* player, Game* game) {
 	printf("Player Absolute Coordinate: [%d, %d]\n", player->position.x, player->position.y);
 	printf("Camera Relative Coordinate: [%d, %d]\n", relativeTopLeftCoordinate[0], relativeTopLeftCoordinate[1]);
 	printf("Player Mental Health: %d\n", player->stats.mentalHealth);
-	printf("Time: %d%d:%d%d\n", game->timeInMinutes / 10, game->timeInMinutes % 10, game->timeInSeconds % 60 / 10, (game->timeInSeconds % 60) % 10);
-	printf("Day:  %d", game->day);
+	printf("Time: %d%d:%d%d\n", game->gameTime.timeInMinutes / 10, game->gameTime.timeInMinutes % 10, game->gameTime.timeInSeconds % 60 / 10, (game->gameTime.timeInSeconds % 60) % 10);
+	printf("Day:  %d", game->gameTime.day);
 }
 
 int initiateDatas(Game *game) {
@@ -392,9 +448,9 @@ int initiateDatas(Game *game) {
 int main(void) {
 	Player player = { {185, 53, 553}, {0, 0, 0}, {2, 21, 0}, 0 };
 	Game game = { {DEFAULT_MOVE_UP, DEFAULT_MOVE_LEFT, DEFAULT_MOVE_DOWN, DEFAULT_MOVE_RIGHT},
-		0, {0, 0}, time(NULL), 0, 1, 1, (NPC*)malloc(sizeof(NPC)), (char*)malloc(sizeof(char)), (char*)malloc(sizeof(char)), 0, {NULL, 0, 0, NULL}, 0};
+		0, {0, 0}, {0, 0, 1, time(NULL)}, (NPC*)malloc(sizeof(NPC)), (char*)malloc(sizeof(char)), (char*)malloc(sizeof(char)), 0, {NULL, 0, 0, NULL}, 0};
 	updateCameraRelativeCoordinate(&game, &player);
-	updateCurrentActivePrompt(&game, "Objective: Meet the Principal", -1);
+	updateCurrentActivePrompt(&game, "Objective: Meet the Principal", -1, 0);
 	printf("\33[?25l"); // Hide the cursor
 	//printf("\33[?25h"); // Re enable cursor
 	if (initiateDatas(&game) == 0) { printf(ANSI_COLOR_RED "{No Map Data}"); return; };
