@@ -1,6 +1,6 @@
 Map Elements
 
-00
+000
 
 Index 2
 0 - Is not moveable

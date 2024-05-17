@@ -459,7 +459,7 @@ int initiateDatas(Game *game) {
 }
 
 int main(void) {
-	Player player = { {185, 53, 553}, {0}, {2, 21, 0}, 0 };
+	Player player = { {185, 5, 553}, {0}, {2, 21, 0}, 0 };
 	Game game = { {DEFAULT_MOVE_UP, DEFAULT_MOVE_LEFT, DEFAULT_MOVE_DOWN, DEFAULT_MOVE_RIGHT},
 		0, {0, 0}, {0, 0, 1, time(NULL)}, (NPC*)malloc(sizeof(NPC)), (char*)malloc(sizeof(char)), (char*)malloc(sizeof(char)), 0, {NULL, 0, 0, NULL}, 0};
 	updateCameraRelativeCoordinate(&game, &player);
