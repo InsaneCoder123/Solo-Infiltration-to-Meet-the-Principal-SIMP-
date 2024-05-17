@@ -61,7 +61,8 @@ typedef struct {
 } Items;
 
 typedef struct {
-	int* itemID;
+	int itemID;
+	int quantity;
 } itemRequirements;
 
 typedef struct {
@@ -225,7 +226,7 @@ void updateCurrentActivePrompt(Game *game, char *dialouge, int choice, int dialo
 }
 
 
-void spawnNPC(Game* game, int x, int y, int id, char **dialouges, int numberOfDialouges) {
+void spawnNPC(Game* game, int x, int y, int id, char **dialouges, int numberOfDialouges, NPCRequirements *npcRequirements) {
 	NPC *lastFreeSpaceInNPCList = &game->npcList[game->numberOfNPC];
 	lastFreeSpaceInNPCList->coordinate.x = x;
 	lastFreeSpaceInNPCList->coordinate.y = y;
@@ -414,7 +415,9 @@ int readInput(Game* game, Player* player) {
 		npcDialouges[0] = "What do you want child?";
 		npcDialouges[1] = "You need to give me this specific item first before I tell you.";
 		npcDialouges[2] = "LOL AHAHAH";
-		spawnNPC(game, 10, 18, 7, npcDialouges, 3);
+		itemRequirements itemRequirements = {1, 1};
+		NPCRequirements npcRequirements[] = { {&itemRequirements, 1} };
+		spawnNPC(game, 10, 18, 7, npcDialouges, 3, npcRequirements);
 	}
 	if (userInput == 'b') {
 		return 0;
