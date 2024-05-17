@@ -60,6 +60,15 @@ typedef struct {
 	int statModifier;
 } Items;
 
+typedef struct {
+	int* itemID;
+} itemRequirements;
+
+typedef struct {
+	itemRequirements* npcItemRequirements;
+	int npcRequirementsID;
+} NPCRequirements;
+
 
 typedef struct {
 	playerStats stats;
@@ -78,6 +87,7 @@ typedef struct {
 	position coordinate;
 	int id;
 	Dialouge dialouge;
+	NPCRequirements* npcRequirements;
 } NPC;
 
 typedef struct Option Option;
@@ -128,13 +138,13 @@ void updateCurrentActiveNPC(Game *game, NPC activeNPC) {
 }
 
 void clearPromptAndOptions(Game *game, Player* player) {
-	updateCurrentActivePrompt(game, " ", -1, 0);
+	updateCurrentActivePrompt(game, " ", -1, 0, 0);
 	game->activePrompt.option = (Option*)realloc(game->activePrompt.option, 0);
 	game->activePrompt.numberOfOptions = 0;
 }
 
 void exitInteractionWithNPC(Game* game, Player* player, int dialougeID) {
-	updateCurrentActivePrompt(game, " ", -1, 0);
+	updateCurrentActivePrompt(game, " ", -1, 0, 0);
 	game->activePrompt.option = (Option*)realloc(game->activePrompt.option, 0);
 	game->activePrompt.numberOfOptions = 0;
 	game->isInteractionActive = 0;
@@ -142,7 +152,7 @@ void exitInteractionWithNPC(Game* game, Player* player, int dialougeID) {
 
 void goToDialougeAndOptions(Game *game, Player *player, int dialougeID) {
 	clearPromptAndOptions(game, player);
-	updateCurrentActivePrompt(game, game->currentActiveNPC.dialouge.dialouges[dialougeID], 0, 1);
+	updateCurrentActivePrompt(game, game->currentActiveNPC.dialouge.dialouges[dialougeID], 0, 1, 0);
 	AddOption(game, "Leave", 0, -1, exitInteractionWithNPC);
 }
 
@@ -199,7 +209,7 @@ int calculateIndexFromCoordinate(int x, int y, int width, int dataSize, int data
 	return (y * width * dataSize) + (x * dataSize) + dataIndex;
 }
 
-void updateCurrentActivePrompt(Game *game, char *dialouge, int choice, int dialougeStage) {
+void updateCurrentActivePrompt(Game *game, char *dialouge, int choice, int dialougeStage, int isThereRequirements) {
 
 	size_t newSize = strlen(dialouge) + 1;
 	char *temp = (char*)realloc(game->activePrompt.dialouge, newSize);
@@ -335,7 +345,7 @@ void changeposition(Player* player, int x, int y, int areaID) {
 }
 
 void interactWithNPC(Game *game) {
-	updateCurrentActivePrompt(game, game->currentActiveNPC.dialouge.dialouges[0], 0, 0);
+	updateCurrentActivePrompt(game, game->currentActiveNPC.dialouge.dialouges[0], 0, 0, 0);
 	AddOption(game, "Where is the Principal?", 0, 1, goToDialougeAndOptions);
 	AddOption(game, "Leave", 1, -1, exitInteractionWithNPC);
 	game->isInteractionActive = 1;
@@ -401,7 +411,7 @@ int readInput(Game* game, Player* player) {
 	}
 	if (userInput == 'l') {
 		char *npcDialouges[3] = {'\0'};
-		npcDialouges[0] = "What do you want Child?";
+		npcDialouges[0] = "What do you want child?";
 		npcDialouges[1] = "You need to give me this specific item first before I tell you.";
 		npcDialouges[2] = "LOL AHAHAH";
 		spawnNPC(game, 10, 18, 7, npcDialouges, 3);
@@ -446,11 +456,11 @@ int initiateDatas(Game *game) {
 }
 
 int main(void) {
-	Player player = { {185, 53, 553}, {0, 0, 0}, {2, 21, 0}, 0 };
+	Player player = { {185, 53, 553}, {0}, {2, 21, 0}, 0 };
 	Game game = { {DEFAULT_MOVE_UP, DEFAULT_MOVE_LEFT, DEFAULT_MOVE_DOWN, DEFAULT_MOVE_RIGHT},
 		0, {0, 0}, {0, 0, 1, time(NULL)}, (NPC*)malloc(sizeof(NPC)), (char*)malloc(sizeof(char)), (char*)malloc(sizeof(char)), 0, {NULL, 0, 0, NULL}, 0};
 	updateCameraRelativeCoordinate(&game, &player);
-	updateCurrentActivePrompt(&game, "Objective: Meet the Principal", -1, 0);
+	updateCurrentActivePrompt(&game, "Objective: Meet the Principal", -1, 0, 0);
 	printf("\33[?25l"); // Hide the cursor
 	//printf("\33[?25h"); // Re enable cursor
 	if (initiateDatas(&game) == 0) { printf(ANSI_COLOR_RED "{No Map Data}"); return; };
