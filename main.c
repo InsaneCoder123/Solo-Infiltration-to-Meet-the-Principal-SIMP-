@@ -37,7 +37,7 @@ typedef struct {
 	int x;
 	int y;
 	int areaID;
-} position;
+} Position;
 
 
 typedef struct {
@@ -64,7 +64,7 @@ typedef struct {
 typedef struct {
 	playerStats stats;
 	Items inventory[13];
-	position position;
+	Position position;
 	int itemsNumber;
 } Player;
 
@@ -75,7 +75,7 @@ typedef struct {
 } Dialouge;
 
 typedef struct {
-	position coordinate;
+	Position coordinate;
 	int id;
 	Dialouge dialouge;
 } NPC;
@@ -97,22 +97,23 @@ typedef struct {
 	long timeWhenGameStarted;
 } GameTime;
 
+typedef struct {
+	NPC* npcList;
+	NPC currentActiveNPC;
+	ActivePrompt activePrompt;
+	int numberOfNPC;
+	int isInteractionActive;
+} SceneManager;
 
 typedef struct {
 	Keybinds keybinds;
-	int sceneID;
-	int relativeCameraCoordinate[2];
 	GameTime gameTime;
-	NPC* npcList;
+	int relativeCameraCoordinate[2];
 	char* mapData;
 	char* interfaceData;
-	int numberOfNPC;
-	ActivePrompt activePrompt;
-	int isInteractionActive;
-	NPC currentActiveNPC;
-} Game;
+} GameManager;
 
-typedef void (*EventAction)(Game* game, Player* player, int dialougeID);
+typedef void (*EventAction)(GameManager* game, SceneManager* scene, Player* player, int dialougeID);
 struct Option{
 	EventAction eventAction;
 	char OptionText[50];
@@ -120,52 +121,58 @@ struct Option{
 	int pointedDialougeID;
 };
 
-void AddOption(Game* game, char* dialouge, int id, int pointedDialougeID, void (*f)(Game, Player));
-void updateCurrentActivePrompt(Game* game, char* dialouge, int choice, int dialougeStage);
+void AddOption(GameManager* game, char* dialouge, int id, int pointedDialougeID, void (*f)(GameManager, SceneManager, Player));
+void updateCurrentActivePrompt(SceneManager *scene, char* dialouge, int choice, int dialougeStage);
 
-void updateCurrentActiveNPC(Game *game, NPC activeNPC) {
-	game->currentActiveNPC = activeNPC;
+void updateCurrentActiveNPC(SceneManager *scene, NPC activeNPC) {
+	scene->currentActiveNPC = activeNPC;
 }
 
-void clearPromptAndOptions(Game *game, Player* player) {
-	updateCurrentActivePrompt(game, " ", -1, 0);
-	game->activePrompt.option = (Option*)realloc(game->activePrompt.option, 0);
-	game->activePrompt.numberOfOptions = 0;
+void clearPromptAndOptions(GameManager *game, SceneManager *scene, Player* player) {
+	updateCurrentActivePrompt(scene, " ", -1, 0);
+	scene->activePrompt.option = (Option*)realloc(scene->activePrompt.option, 0);
+	scene->activePrompt.numberOfOptions = 0;
 }
 
-void exitInteractionWithNPC(Game* game, Player* player, int dialougeID) {
-	updateCurrentActivePrompt(game, " ", -1, 0);
-	game->activePrompt.option = (Option*)realloc(game->activePrompt.option, 0);
-	game->activePrompt.numberOfOptions = 0;
-	game->isInteractionActive = 0;
+void exitInteractionWithNPC(GameManager* game, SceneManager *scene, Player* player, int dialougeID) {
+	updateCurrentActivePrompt(scene, " ", -1, 0);
+	scene->activePrompt.option = (Option*)realloc(scene->activePrompt.option, 0);
+	scene->activePrompt.numberOfOptions = 0;
+	scene->isInteractionActive = 0;
 }
 
-void goToDialougeAndOptions(Game *game, Player *player, int dialougeID) {
-	clearPromptAndOptions(game, player);
-	updateCurrentActivePrompt(game, game->currentActiveNPC.dialouge.dialouges[dialougeID], 0, 1);
-	AddOption(game, "Leave", 0, -1, exitInteractionWithNPC);
+void goToDialougeAndOptions(GameManager *game, SceneManager *scene, Player *player, int dialougeID) {
+	clearPromptAndOptions(game, scene, player);
+	updateCurrentActivePrompt(scene, scene->currentActiveNPC.dialouge.dialouges[dialougeID], 0, 1);
+	AddOption(scene, "Leave", 0, -1, exitInteractionWithNPC);
 }
 
 
-void AddOption(Game *game, char *dialouge, int id, int pointedDialougeID, void (*f)(Game, Player)) {
-	int newNumberOfOptions = game->activePrompt.numberOfOptions + 1;
-	Option* temp = (Option*)realloc(game->activePrompt.option, sizeof(Option)*newNumberOfOptions);
+void AddOption(SceneManager *scene, char *dialouge, int id, int pointedDialougeID, void (*f)(GameManager, SceneManager, Player, int)) {
+	// Add an option when interacting with an NPC, or possibly an object
+	// The option added will have an attached function assigned in runtime that can be executed when the player selects the option
+	// The option may also have an attached pointed dialouge ID that will update the current prompt to that dialouge
+	int newNumberOfOptions = scene->activePrompt.numberOfOptions + 1;
+ 	Option* temp = (Option*)realloc(scene->activePrompt.option, sizeof(Option)*newNumberOfOptions);
 	if (temp == NULL) {
 		printf(ANSI_COLOR_RED "\n[Memory Allocation Field]\n" ANSI_COLOR_RESET);
 		return;
 	}
-	game->activePrompt.option = temp;
-	game->activePrompt.numberOfOptions = newNumberOfOptions;
+	scene->activePrompt.option = temp;
+	scene->activePrompt.numberOfOptions = newNumberOfOptions;
 
-	strncpy(game->activePrompt.option[newNumberOfOptions - 1].OptionText, dialouge, sizeof(game->activePrompt.option[newNumberOfOptions - 1].OptionText) - 1);
-	game->activePrompt.option[newNumberOfOptions - 1].OptionText[sizeof(game->activePrompt.option[newNumberOfOptions - 1].OptionText) - 1] = '\0'; // Ensure null-termination
-	game->activePrompt.option[newNumberOfOptions - 1].id = id;
-	game->activePrompt.option[newNumberOfOptions - 1].pointedDialougeID = pointedDialougeID;
-	game->activePrompt.option[newNumberOfOptions - 1].eventAction = f;
+	strncpy(scene->activePrompt.option[newNumberOfOptions - 1].OptionText, dialouge, sizeof(scene->activePrompt.option[newNumberOfOptions - 1].OptionText) - 1);
+	scene->activePrompt.option[newNumberOfOptions - 1].OptionText[sizeof(scene->activePrompt.option[newNumberOfOptions - 1].OptionText) - 1] = '\0'; // Ensure null-termination
+	scene->activePrompt.option[newNumberOfOptions - 1].id = id;
+	scene->activePrompt.option[newNumberOfOptions - 1].pointedDialougeID = pointedDialougeID;
+	scene->activePrompt.option[newNumberOfOptions - 1].eventAction = f;
 	
 }
 
 int isTwoCoordinatesTheSame(int x, int y, int x2, int y2) {
+	// Compares to coordinate if they are the same
+	// Function was made to increase readability of code
+	// Used to determine if a specific object is in the pointed coordinate in the nested loops while rendering
 	if (x2 == x && y2 == y) {
 		return 1;
 	}
@@ -173,50 +180,65 @@ int isTwoCoordinatesTheSame(int x, int y, int x2, int y2) {
 }
 
 char mapTypeToChar(int n) {
+	// Converts an int into a char
+	// Used in the conversion from map data to a char representation of the data to use in the render of the map data
 	char mapTypeArr[] = ".# ";
 	return mapTypeArr[n];
 }
 
 char intToChar(int n) {
+	// Converts an int into a char
+	// Used in the conversion from user interface data to a char representation of the data to use in the render of the user interface
 	char uiArr[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ-: ?";
 	return uiArr[n-1];
 }
 
-NPC findNPCwithCoordinate(Game *game, int x, int y) {
-	for (int i = 0; i < game->numberOfNPC; i++) {
-		if (isTwoCoordinatesTheSame(game->npcList[i].coordinate.x, game->npcList[i].coordinate.y, x, y)) {
-			return game->npcList[i];
+NPC findNPCwithCoordinate(SceneManager *scene, int x, int y) {
+	// Iliterates through the list of NPC and then returns the NPC that has a specific coordinate
+	for (int i = 0; i < scene->numberOfNPC; i++) {
+		if (isTwoCoordinatesTheSame(scene->npcList[i].coordinate.x, scene->npcList[i].coordinate.y, x, y)) {
+			return scene->npcList[i];
 		}
 	}
 }
 
-void updateCameraRelativeCoordinate(Game *game, Player *player) {
+void updateCameraRelativeCoordinate(GameManager *game, Player *player) {
+	// Updates the absolute coordinate of the point in the top left of the player based on the render distance around the player
+	// This is used as the reference coordinate when rendering the map
 	game->relativeCameraCoordinate[0] = player->position.x - (CAMERA_WIDTH - 1) / 2;
 	game->relativeCameraCoordinate[1] = player->position.y - (CAMERA_HEIGHT - 1) / 2;
 }
 
 int calculateIndexFromCoordinate(int x, int y, int width, int dataSize, int dataIndex) { 
+	// Calculates the index of the data of a element in a one dimensional array
+	// Refer to the documentation for the corresponding data of the elements (map and user interface)
+	// Each data of an element has a particular amount of data attached to it. 
+	// Example: A wall may have three data: isMoveable, State, Map Element Type. Which is represented as 011 in data form
 	return (y * width * dataSize) + (x * dataSize) + dataIndex;
 }
 
-void updateCurrentActivePrompt(Game *game, char *dialouge, int choice, int dialougeStage) {
+void updateCurrentActivePrompt(SceneManager *scene, char *dialouge, int choice, int dialougeStage) {
+
+	// Updates the current active prompt in the screen
 
 	size_t newSize = strlen(dialouge) + 1;
-	char *temp = (char*)realloc(game->activePrompt.dialouge, newSize);
+	char *temp = (char*)realloc(scene->activePrompt.dialouge, newSize);
 	if (temp == NULL) {
 		printf(ANSI_COLOR_RED "\n[Memory Allocation Field]\n" ANSI_COLOR_RESET);
 		return;
 	}
 	
-	game->activePrompt.dialouge = temp;
-	game->activePrompt.dialougeStage = dialougeStage;
-	strcpy(game->activePrompt.dialouge, dialouge);
-	game->activePrompt.currentOption = choice;
+	scene->activePrompt.dialouge = temp;
+	scene->activePrompt.dialougeStage = dialougeStage;
+	strcpy(scene->activePrompt.dialouge, dialouge);
+	scene->activePrompt.currentOption = choice;
 }
 
 
-void spawnNPC(Game* game, int x, int y, int id, char **dialouges, int numberOfDialouges) {
-	NPC *lastFreeSpaceInNPCList = &game->npcList[game->numberOfNPC];
+void spawnNPC(GameManager* game, SceneManager *scene, int x, int y, int id, char **dialouges, int numberOfDialouges) {
+	// Spawns an NPC by initializing its coordinates, dialouges and then modifying the map data to indicate the presence of the NPC
+	// Additionally, add the NPC to the scene manager NPC list
+	NPC *lastFreeSpaceInNPCList = &scene->npcList[scene->numberOfNPC];
 	lastFreeSpaceInNPCList->coordinate.x = x;
 	lastFreeSpaceInNPCList->coordinate.y = y;
 	lastFreeSpaceInNPCList->id = id;
@@ -232,17 +254,23 @@ void spawnNPC(Game* game, int x, int y, int id, char **dialouges, int numberOfDi
 	game->mapData[calculateIndexFromCoordinate(x, y, TOTAL_WIDTH_MAP, MAP_DATASIZE, 0)] = id + '0';
 	game->mapData[calculateIndexFromCoordinate(x, y, TOTAL_WIDTH_MAP, MAP_DATASIZE, 2)] = 0 + '0';
 
-	++game->numberOfNPC;
+	++scene->numberOfNPC;
 }
 
 char onOption(int currentOption, int optionID) {
+	// If the current option of the player matches the option id of the argument, it will a '>' which indicates in the render what
+	// option the player is selecting
 	if (currentOption == optionID) {
 		return '>';
 	}
 	return ' ';
 }
 
-void renderUI(Game *game, Player* player) {
+void renderUI(GameManager *game, SceneManager *scene, Player* player) {
+	// Utilizes two independent tracker for the current coordinate that the nested loops points to relative to the coordinate designated in
+	// the map data and the user interface data which creates the illusion of boundary and limited render distance around the player
+	// Additionally, it allows the render of player stats data in the right side of the render of the map data as independent entities
+
 	int screenPointerX = 0;
 	int screenPointerY = 0;
 
@@ -253,7 +281,8 @@ void renderUI(Game *game, Player* player) {
 		for (int screenX = 0; screenX < SCREEN_WIDTH; screenX++) {
 			updateCameraRelativeCoordinate(game, player);
 
-			//Game Screen Rendering
+			// Game Screen Rendering
+
 			if (screenX < CAMERA_WIDTH) {
 				if (isTwoCoordinatesTheSame((CAMERA_WIDTH-1)/2, (CAMERA_HEIGHT-1)/2, screenPointerX, screenPointerY)) {
 					printf("@");
@@ -275,7 +304,8 @@ void renderUI(Game *game, Player* player) {
 				++screenPointerX;
 			}
 
-			//User Interface Rendering
+			// User Interface Rendering
+
 			if (screenX >= CAMERA_WIDTH) {
 				if (screenY < TOTAL_HEIGHT_UI) {
 					int currentInterfaceIndex = calculateIndexFromCoordinate(userInterfacePointerX, userInterfacePointerY, TOTAL_WIDTH_UI, UI_DATASIZE, 0);
@@ -319,11 +349,11 @@ void renderUI(Game *game, Player* player) {
 		userInterfacePointerX = 0;
 	}
 
-	printf("%s\n", game->activePrompt.dialouge);
-	if (game->activePrompt.option != NULL) {
-		for (int i = 0; i < game->activePrompt.numberOfOptions; i++) {
-			printf("%c %s\n", onOption(game->activePrompt.currentOption, game->activePrompt.option[i].id), 
-				game->activePrompt.option[i].OptionText);
+	printf("%s\n", scene->activePrompt.dialouge);
+	if (scene->activePrompt.option != NULL) {
+		for (int i = 0; i < scene->activePrompt.numberOfOptions; i++) {
+			printf("%c %s\n", onOption(scene->activePrompt.currentOption, scene->activePrompt.option[i].id), 
+				scene->activePrompt.option[i].OptionText);
 		}
 	}
 }
@@ -334,19 +364,25 @@ void changeposition(Player* player, int x, int y, int areaID) {
 	player->position.areaID = areaID;
 }
 
-void interactWithNPC(Game *game) {
-	updateCurrentActivePrompt(game, game->currentActiveNPC.dialouge.dialouges[0], 0, 0);
-	AddOption(game, "Where is the Principal?", 0, 1, goToDialougeAndOptions);
-	AddOption(game, "Leave", 1, -1, exitInteractionWithNPC);
-	game->isInteractionActive = 1;
+void interactWithNPC(SceneManager *scene) {
+	// The current prompt will become the dialouge stored in that particular type of NPC
+	// To be implemented: Template of interaction for each NPC
+	updateCurrentActivePrompt(scene, scene->currentActiveNPC.dialouge.dialouges[0], 0, 0);
+	AddOption(scene, "Where is the Principal?", 0, 1, goToDialougeAndOptions);
+	AddOption(scene, "Leave", 1, -1, exitInteractionWithNPC);
+	scene->isInteractionActive = 1;
 }
 
-int canPlayerMoveThere(Player* player, Game* game, int x, int y) {
+int canPlayerMoveThere(Player* player, SceneManager *scene, GameManager* game, int x, int y) {
+	// Checks if a player can move to a position forward. Gets the data of the object the player wants to move to and then decide
+	// an action depending on the attached data on that object
 	int indexOfObjectAhead = calculateIndexFromCoordinate(player->position.x + x, player->position.y + y, TOTAL_WIDTH_MAP, MAP_DATASIZE, 0);
-	if (game->mapData[indexOfObjectAhead + 2] - '0' == 0) {
-		if (game->mapData[indexOfObjectAhead] - '0' == 7) {
-			updateCurrentActiveNPC(game, findNPCwithCoordinate(game, player->position.x + x, player->position.y + y));
-			interactWithNPC(game);
+	if (game->mapData[indexOfObjectAhead + 2] - '0' == 0) { // Refer to documentation. A [0] attached data in the third index refers to an area that can't be moved to
+		if (game->mapData[indexOfObjectAhead] - '0' == 7) { // Refer to documentation. A [7] attached data in the first index refers to a Guard NPC occupying that area
+			// A player attempting to move to that area will trigger an interaction with the NPC.
+			// The NPC in the coordinate the player attempted to move to will become the current active NPC that can be accessed in the scene manager
+			updateCurrentActiveNPC(scene, findNPCwithCoordinate(scene, player->position.x + x, player->position.y + y)); 
+			interactWithNPC(scene);
 		}
 		return 0;
 	}
@@ -354,6 +390,7 @@ int canPlayerMoveThere(Player* player, Game* game, int x, int y) {
 }
 
 void addItemInInventory(Player* player, int id, int type, int statModifier, int quantity) {
+	// Add item to inventory
 	Items lastEmptySpotInventory = player->inventory[player->itemsNumber - 1];
 	lastEmptySpotInventory.id = id;
 	lastEmptySpotInventory.type = type;
@@ -363,40 +400,41 @@ void addItemInInventory(Player* player, int id, int type, int statModifier, int 
 }
 
 
-int readInput(Game* game, Player* player) {
+int readInput(GameManager* game, SceneManager *scene, Player *player) {
+	// Read the char input from the user. Keys are assigned to specific tasks
 	char userInput = _getch();
-	if (game->isInteractionActive == 0) {
+	if (scene->isInteractionActive == 0) {
 		if (userInput == game->keybinds.moveUp) {
-			if (canPlayerMoveThere(player, game, 0, -1) == 1) {
-				changeposition(player, 0, -1, game->sceneID);
+			if (canPlayerMoveThere(player, scene, game, 0, -1) == 1) {
+				changeposition(player, 0, -1, 0);
 			}
 		}
 		else if (userInput == game->keybinds.moveLeft) {
-			if (canPlayerMoveThere(player, game, -1, 0) == 1) {
-				changeposition(player, -1, 0, game->sceneID);
+			if (canPlayerMoveThere(player, scene, game, -1, 0) == 1) {
+				changeposition(player, -1, 0, 0);
 			}
 		}
 		else if (userInput == game->keybinds.moveDown) {
-			if (canPlayerMoveThere(player, game, 0, 1) == 1) {
-				changeposition(player, 0, 1, game->sceneID);
+			if (canPlayerMoveThere(player, scene, game, 0, 1) == 1) {
+				changeposition(player, 0, 1, 0);
 			}
 		}
 		else if (userInput == game->keybinds.moveRight) {
-			if (canPlayerMoveThere(player, game, 1, 0) == 1) {
-				changeposition(player, 1, 0, game->sceneID);
+			if (canPlayerMoveThere(player, scene, game, 1, 0) == 1) {
+				changeposition(player, 1, 0, 0);
 			}
 		}
 	}
 	else {
-		if (userInput == game->keybinds.moveUp && game->activePrompt.currentOption != 0) {
-			game->activePrompt.currentOption -= 1;
+		if (userInput == game->keybinds.moveUp && scene->activePrompt.currentOption != 0) {
+			scene->activePrompt.currentOption -= 1;
 		}
-		else if (userInput == game->keybinds.moveDown && game->activePrompt.currentOption != game->activePrompt.numberOfOptions - 1) {
-			game->activePrompt.currentOption += 1;
+		else if (userInput == game->keybinds.moveDown && scene->activePrompt.currentOption != scene->activePrompt.numberOfOptions - 1) {
+			scene->activePrompt.currentOption += 1;
 		}
 		else if (userInput == ' ') {
-			Option currentOption = game->activePrompt.option[game->activePrompt.currentOption];
-			currentOption.eventAction(game, player, currentOption.pointedDialougeID);
+			Option currentOption = scene->activePrompt.option[scene->activePrompt.currentOption];
+			currentOption.eventAction(game, scene, player, currentOption.pointedDialougeID);
 		}
 	}
 	if (userInput == 'l') {
@@ -404,7 +442,7 @@ int readInput(Game* game, Player* player) {
 		npcDialouges[0] = "What do you want Child?";
 		npcDialouges[1] = "You need to give me this specific item first before I tell you.";
 		npcDialouges[2] = "LOL AHAHAH";
-		spawnNPC(game, 10, 18, 7, npcDialouges, 3);
+		spawnNPC(game, scene, 10, 18, 7, npcDialouges, 3);
 	}
 	if (userInput == 'b') {
 		return 0;
@@ -413,21 +451,23 @@ int readInput(Game* game, Player* player) {
 }
 
 
-void updateTime(Game *game) {
+void updateTime(GameManager *game) {
+	// Update the time with 540 seconds as the starting time in order for the game to start at 9:00
 	game->gameTime.timeInSeconds = 540 + (time(NULL) - game->gameTime.timeWhenGameStarted) * 3;
 	game->gameTime.timeInMinutes = game->gameTime.timeInSeconds / 60;
 }
 
-void debugMode(Player* player, Game* game) {
+void debugMode(Player* player, GameManager* game) {
 	int relativeTopLeftCoordinate[2] = { player->position.x - (CAMERA_WIDTH - 1) / 2, player->position.y - (CAMERA_HEIGHT - 1) / 2 };
 	printf("Player Absolute Coordinate: [%d, %d]\n", player->position.x, player->position.y);
 	printf("Camera Relative Coordinate: [%d, %d]\n", relativeTopLeftCoordinate[0], relativeTopLeftCoordinate[1]);
 	printf("Player Mental Health: %d\n", player->stats.mentalHealth);
 	printf("Time: %d%d:%d%d\n", game->gameTime.timeInMinutes / 10, game->gameTime.timeInMinutes % 10, game->gameTime.timeInSeconds % 60 / 10, (game->gameTime.timeInSeconds % 60) % 10);
-	printf("Day:  %d", game->gameTime.day);
+	printf("Day:  %d\n", game->gameTime.day);
 }
 
-int initiateDatas(Game *game) {
+int initiateDatas(GameManager *game) {
+	// Open the txt files containing the data for the map and user interface, then  store it into the game manager structure as a member
 	FILE* fptr;
 	fptr = fopen("mapData.txt", "r");
 	if (fptr == NULL) { return 0; };
@@ -445,25 +485,56 @@ int initiateDatas(Game *game) {
 	return 1;
 }
 
+Player initiatePlayerManager() {
+	Player player = {
+		{50, 50, 50}, // Stats: MH, PHP, CHA
+		{0}, // Items
+		{2, 21, 1}, // Position: x, y, areaID
+		0 // Number of Items
+	};
+	return player;
+}
+GameManager initiateGameManager() {
+	GameManager game = {
+		{DEFAULT_MOVE_UP, DEFAULT_MOVE_LEFT, DEFAULT_MOVE_DOWN, DEFAULT_MOVE_RIGHT}, // Navigation keybinds
+		{0, 0, 1, time(NULL)}, // Game Time
+		{0, 0}, // Relative Camera Coordinate
+		(char*)malloc(sizeof(char)), // Map Data Initial Allocation
+		(char*)malloc(sizeof(char)) // UI Data Initial Allocation
+	};
+	return game;
+}
+
+SceneManager initiateSceneManager() {
+	SceneManager scene = {
+		(NPC*)malloc(sizeof(NPC)), // NPC List Initial Allocation
+		NULL, // Current NPC Interacted Initialization
+		NULL, // Current Active Prompt Initialization
+		0, // Number of NPC Active in Map
+		0 // Interaction Between Player to NPC Active {0 = false, 1=true}
+	};
+	return scene;
+}
 int main(void) {
-	Player player = { {185, 53, 553}, {0, 0, 0}, {2, 21, 0}, 0 };
-	Game game = { {DEFAULT_MOVE_UP, DEFAULT_MOVE_LEFT, DEFAULT_MOVE_DOWN, DEFAULT_MOVE_RIGHT},
-		0, {0, 0}, {0, 0, 1, time(NULL)}, (NPC*)malloc(sizeof(NPC)), (char*)malloc(sizeof(char)), (char*)malloc(sizeof(char)), 0, {NULL, 0, 0, NULL}, 0};
+	Player player = initiatePlayerManager();
+	GameManager game = initiateGameManager();
+	SceneManager scene = initiateSceneManager();
+
 	updateCameraRelativeCoordinate(&game, &player);
-	updateCurrentActivePrompt(&game, "Objective: Meet the Principal", -1, 0);
+	updateCurrentActivePrompt(&scene, "Objective: Meet the Principal", -1, 0);
 	printf("\33[?25l"); // Hide the cursor
 	//printf("\33[?25h"); // Re enable cursor
 	if (initiateDatas(&game) == 0) { printf(ANSI_COLOR_RED "{No Map Data}"); return; };
 
-	renderUI(&game, &player);
-	while (readInput(&game, &player) == 1) {
+	renderUI(&game, &scene, &player);
+	while (readInput(&game, &scene, &player) == 1) {
 		system("cls");
 		updateTime(&game);
 		//debugMode(&player, &game);
-		renderUI(&game, &player);
+		renderUI(&game, &scene, &player);
 	}
-	free(game.npcList);
+	free(scene.npcList);
 	free(game.interfaceData);
 	free(game.mapData);
-	free(game.activePrompt.dialouge);
+	free(scene.activePrompt.dialouge);
 }
