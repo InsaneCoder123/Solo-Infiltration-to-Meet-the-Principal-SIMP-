@@ -37,3 +37,4 @@ Student NPC
 Guard NPC
 Entrance Guard NPC
 Canteen Vendor NPC
+Principal NPC - ID 20

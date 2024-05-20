@@ -102,7 +102,7 @@ typedef struct {
 	int timeInSeconds;
 	int timeInMinutes;
 	int day;
-	long timeWhenGameStarted;
+	long timeWhenDayStarted;
 } GameTime;
 
 typedef struct {
@@ -119,6 +119,7 @@ typedef struct {
 	int relativeCameraCoordinate[2];
 	char* mapData;
 	char* interfaceData;
+	int isGameRunning;
 } GameManager;
 
 typedef void (*EventAction)(GameManager* game, SceneManager* scene, Player* player, int dialougeID);
@@ -155,6 +156,25 @@ void goToDialougeAndOptions(GameManager *game, SceneManager *scene, Player *play
 	AddOption(scene, "Leave", 0, -1, exitInteractionWithNPC);
 }
 
+void goToDialougeAndOptionsIfRequirementMet(GameManager* game, SceneManager* scene, Player* player, int dialougeID) {
+	clearPromptAndOptions(game, scene, player);
+	switch (scene->currentActiveNPC.requirements[dialougeID-2].type) {
+	case 3: // CHA Requirement
+		if (player->stats.Charisma >= scene->currentActiveNPC.requirements[dialougeID-2].statRequired) {
+			updateCurrentActivePrompt(scene, scene->currentActiveNPC.dialouge.dialouges[dialougeID], 0, 30);
+			AddOption(scene, "Leave", 0, -1, exitInteractionWithNPC);
+		}
+		else { 
+			goToDialougeAndOptions(game, scene, player, 1);
+		}
+		break;
+	}
+}
+
+void getItemOrStatIfRequirementMet(GameManager *game, SceneManager *scene, Player *player, int dialougeID) {
+	clearPromptAndOptions(game, scene, player);
+}
+
 
 void AddOption(SceneManager *scene, char *dialouge, int id, int pointedDialougeID, void (*f)(GameManager, SceneManager, Player, int)) {
 	// Add an option when interacting with an NPC, or possibly an object
@@ -185,6 +205,16 @@ int isTwoCoordinatesTheSame(int x, int y, int x2, int y2) {
 		return 1;
 	}
 	return 0;
+}
+
+char* mapAreaIDtoString(int n) {
+	char* mapName;
+	switch (n) {
+	case 1:
+		mapName = (char*)malloc(sizeof(char)*7);
+		mapName = "Garden";
+		return mapName;
+	}
 }
 
 char mapTypeToChar(int n) {
@@ -256,17 +286,20 @@ void spawnNPC(GameManager* game, SceneManager *scene, Requirement *requirements,
 	// Spawns an NPC by initializing its coordinates, dialouges and then modifying the map data to indicate the presence of the NPC
 	// Additionally, add the NPC to the scene manager NPC list
 	NPC *lastFreeSpaceInNPCList = &scene->npcList[scene->numberOfNPC];
-	lastFreeSpaceInNPCList->requirements = (Requirement*)malloc(sizeof(Requirement)*amountOfRequirements);
 	lastFreeSpaceInNPCList->coordinate.x = x;
 	lastFreeSpaceInNPCList->coordinate.y = y;
 	lastFreeSpaceInNPCList->id = id;
 	lastFreeSpaceInNPCList->dialouge.dialouges = (char**)malloc(numberOfDialouges*sizeof(char*));
 	int dialougeIdAssignment = 0;
-	for (int i = 0; i < amountOfRequirements; i++) {
-		lastFreeSpaceInNPCList->requirements[i].itemID = requirements[i].itemID;
-		lastFreeSpaceInNPCList->requirements[i].requirementID = requirements[i].requirementID;
-		lastFreeSpaceInNPCList->requirements[i].statRequired = requirements[i].statRequired;
-		lastFreeSpaceInNPCList->requirements[i].type = requirements[i].type;
+	if (amountOfRequirements != 0) {
+		lastFreeSpaceInNPCList->requirements = (Requirement*)malloc(sizeof(Requirement)*amountOfRequirements);
+		for (int i = 0; i < amountOfRequirements; i++) {
+			lastFreeSpaceInNPCList->amountOfRequirements = amountOfRequirements;
+			lastFreeSpaceInNPCList->requirements[i].itemID = requirements[i].itemID;
+			lastFreeSpaceInNPCList->requirements[i].requirementID = requirements[i].requirementID;
+			lastFreeSpaceInNPCList->requirements[i].statRequired = requirements[i].statRequired;
+			lastFreeSpaceInNPCList->requirements[i].type = requirements[i].type;
+		}
 	}
 	for (int i = 0; i < numberOfDialouges; i++) {
 		lastFreeSpaceInNPCList->dialouge.dialouges[i] = (char*)malloc((strlen(dialouges[i])+1) * sizeof(char));
@@ -288,6 +321,10 @@ char onOption(int currentOption, int optionID) {
 		return '>';
 	}
 	return ' ';
+}
+
+int whatNPClocatedAt(GameManager *game, int referenceCoordinateX, int referenceCoordinateY, int screenPointerX, int screenPointerY) {
+	return game->mapData[calculateIndexFromCoordinate(referenceCoordinateX + screenPointerX, referenceCoordinateY + screenPointerY, TOTAL_WIDTH_MAP, MAP_DATASIZE, 0)] - '0';
 }
 
 void renderUI(GameManager *game, SceneManager *scene, Player* player) {
@@ -318,11 +355,17 @@ void renderUI(GameManager *game, SceneManager *scene, Player* player) {
 					++screenPointerX;
 					continue;
 				}
-				if (game->mapData[calculateIndexFromCoordinate(game->relativeCameraCoordinate[0] + screenPointerX, game->relativeCameraCoordinate[1] + screenPointerY, TOTAL_WIDTH_MAP, MAP_DATASIZE, 0)] - '0' == 7) {
+				switch (whatNPClocatedAt(game, game->relativeCameraCoordinate[0], game->relativeCameraCoordinate[1], screenPointerX, screenPointerY)) {
+				case 7:
 					printf(ANSI_COLOR_BLUE "@" ANSI_COLOR_RESET);
 					++screenPointerX;
 					continue;
+				case 5:
+					printf(ANSI_COLOR_RED "@" ANSI_COLOR_RESET);
+					++screenPointerX;
+					continue;
 				}
+
 				printf("%c", mapTypeToChar(game->mapData[calculateIndexFromCoordinate(game->relativeCameraCoordinate[0] + screenPointerX, game->relativeCameraCoordinate[1] + screenPointerY,
 					TOTAL_WIDTH_MAP, MAP_DATASIZE, 1)] - '0'));
 				++screenPointerX;
@@ -395,8 +438,29 @@ void interactWithNPC(SceneManager *scene) {
 	// The current prompt will become the dialouge stored in that particular type of NPC
 	// To be implemented: Template of interaction for each NPC
 	updateCurrentActivePrompt(scene, scene->currentActiveNPC.dialouge.dialouges[0], 0, 0);
-	AddOption(scene, "Where is the Principal?", 0, 1, goToDialougeAndOptions);
+	AddOption(scene, "Where is the Principal?", 0, 2, goToDialougeAndOptionsIfRequirementMet);
 	AddOption(scene, "Leave", 1, -1, exitInteractionWithNPC);
+	scene->isInteractionActive = 1;
+}
+
+void endGame(GameManager* game, SceneManager* scene, Player* player, int dialougeID) {
+	game->isGameRunning = 0;
+	system("cls");
+	printf("Congrats! You have met the Principal.");
+	printf("\n\n\n\n\n\n");
+	printf("Game Developed by:\n");
+	printf("Game Project made for CPE162\n\n\n");
+	printf("Thanks for Playing!!!\n\n\n\n\n");
+	printf("Statistics:\n");
+	printf("Days Spent Finding the Principal: %d\n", game->gameTime.day);
+	printf("Player Mental Health: %03d\n", player->stats.mentalHealth);
+	printf("Player Pesos: %03d\n", player->stats.Pesos);
+	printf("Player Charisma: %03d\n\n\n", player->stats.Charisma);
+}
+
+void interactWithPrincipal(SceneManager* scene) {
+	updateCurrentActivePrompt(scene, scene->currentActiveNPC.dialouge.dialouges[0], 0, 0);
+	AddOption(scene, "Yes", 0, -1, endGame);
 	scene->isInteractionActive = 1;
 }
 
@@ -405,14 +469,21 @@ int canPlayerMoveThere(Player* player, SceneManager *scene, GameManager* game, i
 	// an action depending on the attached data on that object
 	int indexOfObjectAhead = calculateIndexFromCoordinate(player->position.x + x, player->position.y + y, TOTAL_WIDTH_MAP, MAP_DATASIZE, 0);
 	if (game->mapData[indexOfObjectAhead + 2] - '0' == 0) { // Refer to documentation. A [0] attached data in the third index refers to an area that can't be moved to
-		if (game->mapData[indexOfObjectAhead] - '0' == 7) { // Refer to documentation. A [7] attached data in the first index refers to a Guard NPC occupying that area
+		switch (whatNPClocatedAt(game, player->position.x, player->position.y, x, y)) {
+			// Refer to documentation. A [7] attached data in the first index refers to a Guard NPC occupying that area
 			// A player attempting to move to that area will trigger an interaction with the NPC.
 			// The NPC in the coordinate the player attempted to move to will become the current active NPC that can be accessed in the scene manager
-			updateCurrentActiveNPC(scene, findNPCwithCoordinate(scene, player->position.x + x, player->position.y + y)); 
-			interactWithNPC(scene);
+			case 7:
+				updateCurrentActiveNPC(scene, findNPCwithCoordinate(scene, player->position.x + x, player->position.y + y)); 
+				interactWithNPC(scene);
+				break;
+			case 5:
+				updateCurrentActiveNPC(scene, findNPCwithCoordinate(scene, player->position.x + x, player->position.y + y));
+				interactWithPrincipal(scene);
+				break;
+			}
+			return 0;
 		}
-		return 0;
-	}
 	return 1;
 }
 
@@ -469,10 +540,17 @@ int readInput(GameManager* game, SceneManager *scene, Player *player) {
 		char *npcDialouges[3] = {'\0'};
 		npcDialouges[0] = "What do you want Child?";
 		npcDialouges[1] = "You need to give me this specific item first before I tell you.";
-		npcDialouges[2] = "LOL AHAHAH";
+		npcDialouges[2] = "The principal is at the Garden";
 
 		Requirement req[] = { {0, 3, -1, 30} };
 		spawnNPC(game, scene, req, 1, 10, 18, 7, npcDialouges, 3);
+	}
+	if (userInput == 'p') {
+		// To be implemenmted template for NPC spawning
+		char* npcDialouges[1] = { '\0' };
+		npcDialouges[0] = "What? You want to complain about your grades?";
+
+		spawnNPC(game, scene, NULL, 0, 10, 21, 5, npcDialouges, 1);
 	}
 	if (userInput == 'b') {
 		return 0;
@@ -483,8 +561,12 @@ int readInput(GameManager* game, SceneManager *scene, Player *player) {
 
 void updateTime(GameManager *game) {
 	// Update the time with 540 seconds as the starting time in order for the game to start at 9:00
-	game->gameTime.timeInSeconds = 540 + (time(NULL) - game->gameTime.timeWhenGameStarted) * 3;
+	game->gameTime.timeInSeconds = 540 + (time(NULL) - game->gameTime.timeWhenDayStarted) * 60;
 	game->gameTime.timeInMinutes = game->gameTime.timeInSeconds / 60;
+	if (game->gameTime.timeInSeconds >= 1440) {
+		game->gameTime.timeWhenDayStarted = time(NULL);
+		++game->gameTime.day;
+	}
 }
 
 void debugMode(Player* player, GameManager* game) {
@@ -517,7 +599,7 @@ int initiateDatas(GameManager *game) {
 
 Player initiatePlayerManager() {
 	Player player = {
-		{50, 50, 50}, // Stats: MH, PHP, CHA
+		{50, 50, 30}, // Stats: MH, PHP, CHA
 		{0}, // Items
 		{2, 21, 1}, // Position: x, y, areaID
 		0 // Number of Items
@@ -530,7 +612,8 @@ GameManager initiateGameManager() {
 		{0, 0, 1, time(NULL)}, // Game Time
 		{0, 0}, // Relative Camera Coordinate
 		(char*)malloc(sizeof(char)), // Map Data Initial Allocation
-		(char*)malloc(sizeof(char)) // UI Data Initial Allocation
+		(char*)malloc(sizeof(char)), // UI Data Initial Allocation
+		1 // Game Running Indicator
 	};
 	return game;
 }
@@ -558,11 +641,15 @@ int main(void) {
 
 	renderUI(&game, &scene, &player);
 	while (readInput(&game, &scene, &player) == 1) {
-		system("cls");
-		updateTime(&game);
-		//debugMode(&player, &game);
-		renderUI(&game, &scene, &player);
+		if (game.isGameRunning == 1) {
+			system("cls");
+			updateTime(&game);
+			//debugMode(&player, &game);
+			renderUI(&game, &scene, &player);
+		}
+		else { break; }
 	}
+	free(scene.activePrompt.option);
 	free(scene.npcList);
 	free(game.interfaceData);
 	free(game.mapData);
