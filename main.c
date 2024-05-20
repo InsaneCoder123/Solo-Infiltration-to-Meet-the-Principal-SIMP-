@@ -312,6 +312,7 @@ void spawnNPC(GameManager* game, SceneManager *scene, Requirement *requirements,
 	game->mapData[calculateIndexFromCoordinate(x, y, TOTAL_WIDTH_MAP, MAP_DATASIZE, 2)] = 0 + '0';
 
 	++scene->numberOfNPC;
+	scene->npcList = (NPC*)realloc(scene->npcList, sizeof(NPC)*(scene->numberOfNPC+1));
 }
 
 char onOption(int currentOption, int optionID) {
@@ -362,6 +363,10 @@ void renderUI(GameManager *game, SceneManager *scene, Player* player) {
 					continue;
 				case 5:
 					printf(ANSI_COLOR_RED "@" ANSI_COLOR_RESET);
+					++screenPointerX;
+					continue;
+				case 9:
+					printf(ANSI_COLOR_MAGENTA "@" ANSI_COLOR_RESET);
 					++screenPointerX;
 					continue;
 				}
@@ -535,7 +540,7 @@ int readInput(GameManager* game, SceneManager *scene, Player *player) {
 			currentOption.eventAction(game, scene, player, currentOption.pointedDialougeID);
 		}
 	}
-	if (userInput == 'l') {
+	if (userInput == 'l') { // Entrance Guard
 		// To be implemenmted template for NPC spawning
 		char *npcDialouges[3] = {'\0'};
 		npcDialouges[0] = "What do you want Child?";
@@ -545,12 +550,19 @@ int readInput(GameManager* game, SceneManager *scene, Player *player) {
 		Requirement req[] = { {0, 3, -1, 30} };
 		spawnNPC(game, scene, req, 1, 10, 18, 7, npcDialouges, 3);
 	}
-	if (userInput == 'p') {
+	if (userInput == 'p') { // Principal
 		// To be implemenmted template for NPC spawning
 		char* npcDialouges[1] = { '\0' };
 		npcDialouges[0] = "What? You want to complain about your grades?";
 
 		spawnNPC(game, scene, NULL, 0, 10, 21, 5, npcDialouges, 1);
+	}
+	if (userInput == 'k') { // Student
+		// To be implemenmted template for NPC spawning
+		char* npcDialouges[1] = { '\0' };
+		npcDialouges[0] = "Oh, what do you want?";
+
+		spawnNPC(game, scene, NULL, 0, 10, 23, 9, npcDialouges, 1);
 	}
 	if (userInput == 'b') {
 		return 0;
@@ -655,3 +667,6 @@ int main(void) {
 	free(game.mapData);
 	free(scene.activePrompt.dialouge);
 }
+
+// TODO
+// Item may spawn randomly in the map, the item that will spawn should be required by one of the NPCs
