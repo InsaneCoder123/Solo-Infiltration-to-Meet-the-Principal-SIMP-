@@ -60,6 +60,12 @@ typedef struct {
 	int statModifier;
 } Items;
 
+typedef struct {
+	int requirementID; // The ID of the requirement, in case of an NPC having multiple requirements
+	int type; // Type 1 - Item, Type 2 - PHP, Type 3 - CHA
+	int itemID; // If -1, it is not needed
+	int statRequired; // The corresponding amount of stat requirement for the particular stat requirement
+} Requirement;
 
 typedef struct {
 	playerStats stats;
@@ -75,8 +81,10 @@ typedef struct {
 } Dialouge;
 
 typedef struct {
-	Position coordinate;
 	int id;
+	int amountOfRequirements;
+	Position coordinate;
+	Requirement* requirements;
 	Dialouge dialouge;
 } NPC;
 
@@ -121,7 +129,7 @@ struct Option{
 	int pointedDialougeID;
 };
 
-void AddOption(GameManager* game, char* dialouge, int id, int pointedDialougeID, void (*f)(GameManager, SceneManager, Player));
+void AddOption(SceneManager* scene, char* dialouge, int id, int pointedDialougeID, void (*f)(GameManager, SceneManager, Player, int));
 void updateCurrentActivePrompt(SceneManager *scene, char* dialouge, int choice, int dialougeStage);
 
 void updateCurrentActiveNPC(SceneManager *scene, NPC activeNPC) {
@@ -143,7 +151,7 @@ void exitInteractionWithNPC(GameManager* game, SceneManager *scene, Player* play
 
 void goToDialougeAndOptions(GameManager *game, SceneManager *scene, Player *player, int dialougeID) {
 	clearPromptAndOptions(game, scene, player);
-	updateCurrentActivePrompt(scene, scene->currentActiveNPC.dialouge.dialouges[dialougeID], 0, 1);
+	updateCurrentActivePrompt(scene, scene->currentActiveNPC.dialouge.dialouges[dialougeID], 0, 10);
 	AddOption(scene, "Leave", 0, -1, exitInteractionWithNPC);
 }
 
@@ -193,6 +201,15 @@ char intToChar(int n) {
 	return uiArr[n-1];
 }
 
+char* requirementTypeToString(int n) {
+	char* s = '\0';
+	switch (n) {
+	case 3:
+		s = "CHA";
+		return s;
+	}
+}
+
 NPC findNPCwithCoordinate(SceneManager *scene, int x, int y) {
 	// Iliterates through the list of NPC and then returns the NPC that has a specific coordinate
 	for (int i = 0; i < scene->numberOfNPC; i++) {
@@ -235,15 +252,22 @@ void updateCurrentActivePrompt(SceneManager *scene, char *dialouge, int choice, 
 }
 
 
-void spawnNPC(GameManager* game, SceneManager *scene, int x, int y, int id, char **dialouges, int numberOfDialouges) {
+void spawnNPC(GameManager* game, SceneManager *scene, Requirement *requirements, int amountOfRequirements, int x, int y, int id, char **dialouges, int numberOfDialouges) {
 	// Spawns an NPC by initializing its coordinates, dialouges and then modifying the map data to indicate the presence of the NPC
 	// Additionally, add the NPC to the scene manager NPC list
 	NPC *lastFreeSpaceInNPCList = &scene->npcList[scene->numberOfNPC];
+	lastFreeSpaceInNPCList->requirements = (Requirement*)malloc(sizeof(Requirement)*amountOfRequirements);
 	lastFreeSpaceInNPCList->coordinate.x = x;
 	lastFreeSpaceInNPCList->coordinate.y = y;
 	lastFreeSpaceInNPCList->id = id;
 	lastFreeSpaceInNPCList->dialouge.dialouges = (char**)malloc(numberOfDialouges*sizeof(char*));
 	int dialougeIdAssignment = 0;
+	for (int i = 0; i < amountOfRequirements; i++) {
+		lastFreeSpaceInNPCList->requirements[i].itemID = requirements[i].itemID;
+		lastFreeSpaceInNPCList->requirements[i].requirementID = requirements[i].requirementID;
+		lastFreeSpaceInNPCList->requirements[i].statRequired = requirements[i].statRequired;
+		lastFreeSpaceInNPCList->requirements[i].type = requirements[i].type;
+	}
 	for (int i = 0; i < numberOfDialouges; i++) {
 		lastFreeSpaceInNPCList->dialouge.dialouges[i] = (char*)malloc((strlen(dialouges[i])+1) * sizeof(char));
 		lastFreeSpaceInNPCList->dialouge.dialougeID = dialougeIdAssignment++;
@@ -350,6 +374,9 @@ void renderUI(GameManager *game, SceneManager *scene, Player* player) {
 	}
 
 	printf("%s\n", scene->activePrompt.dialouge);
+	if (scene->activePrompt.dialougeStage == 10) {
+		printf("(You require %d %s to complete action)\n", scene->currentActiveNPC.requirements[0].statRequired,requirementTypeToString(scene->currentActiveNPC.requirements[0].type));
+	}
 	if (scene->activePrompt.option != NULL) {
 		for (int i = 0; i < scene->activePrompt.numberOfOptions; i++) {
 			printf("%c %s\n", onOption(scene->activePrompt.currentOption, scene->activePrompt.option[i].id), 
@@ -438,11 +465,14 @@ int readInput(GameManager* game, SceneManager *scene, Player *player) {
 		}
 	}
 	if (userInput == 'l') {
+		// To be implemenmted template for NPC spawning
 		char *npcDialouges[3] = {'\0'};
 		npcDialouges[0] = "What do you want Child?";
 		npcDialouges[1] = "You need to give me this specific item first before I tell you.";
 		npcDialouges[2] = "LOL AHAHAH";
-		spawnNPC(game, scene, 10, 18, 7, npcDialouges, 3);
+
+		Requirement req[] = { {0, 3, -1, 30} };
+		spawnNPC(game, scene, req, 1, 10, 18, 7, npcDialouges, 3);
 	}
 	if (userInput == 'b') {
 		return 0;
