@@ -120,6 +120,7 @@ typedef struct {
 	char* mapData;
 	char* interfaceData;
 	int isGameRunning;
+	int debugMode;
 } GameManager;
 
 typedef void (*EventAction)(GameManager* game, SceneManager* scene, Player* player, int dialougeID);
@@ -217,6 +218,49 @@ char* mapAreaIDtoString(int n) {
 	}
 }
 
+char* areaIDtoString(int n) {
+	char* areaName;
+	switch (n) {
+	case 0:
+		areaName = (char*)malloc(sizeof(char) * strlen("[ENTRANCE]"));
+		areaName = "[ENTRANCE]";
+		return areaName;
+	case 1:
+		areaName = (char*)malloc(sizeof(char) * strlen("[LIBRARY]"));
+		areaName = "[LIBRARY]";
+		return areaName;
+	case 2:
+		areaName = (char*)malloc(sizeof(char) * strlen("[PRINCIPAL'S OFFICE]"));
+		areaName = "[PRINCIPAL'S OFFICE]";
+		return areaName;
+	case 3:
+		areaName = (char*)malloc(sizeof(char) * strlen("[STUDY AREA]"));
+		areaName = "[STUDY AREA]";
+		return areaName;
+	case 4:
+		areaName = (char*)malloc(sizeof(char) * strlen("[GARDEN]"));
+		areaName = "[GARDEN]";
+		return areaName;
+	case 5:
+		areaName = (char*)malloc(sizeof(char) * strlen("[GLECROOM]"));
+		areaName = "[GLECROOM]";
+		return areaName;
+	case 6:
+		areaName = (char*)malloc(sizeof(char) * strlen("[GYM]"));
+		areaName = "[GYM]";
+		return areaName;
+	case 7:
+		areaName = (char*)malloc(sizeof(char) * strlen("[FACULTY OFFICE]"));
+		areaName = "[FACULTY OFFICE]";
+		return areaName;
+	case 8:
+		areaName = (char*)malloc(sizeof(char) * strlen("[HALLWAY]"));
+		areaName = "[HALLWAY]";
+		return areaName;
+	}
+	return NULL;
+}
+
 char mapTypeToChar(int n) {
 	// Converts an int into a char
 	// Used in the conversion from map data to a char representation of the data to use in the render of the map data
@@ -239,6 +283,7 @@ char* requirementTypeToString(int n) {
 		return s;
 	}
 }
+
 
 NPC findNPCwithCoordinate(SceneManager *scene, int x, int y) {
 	// Iliterates through the list of NPC and then returns the NPC that has a specific coordinate
@@ -282,7 +327,7 @@ void updateCurrentActivePrompt(SceneManager *scene, char *dialouge, int choice, 
 }
 
 
-void spawnNPC(GameManager* game, SceneManager *scene, Requirement *requirements, int amountOfRequirements, int x, int y, int id, char **dialouges, int numberOfDialouges) {
+void spawnNPC(GameManager* game, SceneManager *scene, Requirement *requirements, int amountOfRequirements, int x, int y, int areaID, int id, char **dialouges, int numberOfDialouges) {
 	// Spawns an NPC by initializing its coordinates, dialouges and then modifying the map data to indicate the presence of the NPC
 	// Additionally, add the NPC to the scene manager NPC list
 	NPC *lastFreeSpaceInNPCList = &scene->npcList[scene->numberOfNPC];
@@ -408,6 +453,10 @@ void renderUI(GameManager *game, SceneManager *scene, Player* player) {
 							printf("%d", game->gameTime.day);
 							++userInterfacePointerX;
 							continue;
+						case 59:
+							printf("%s", areaIDtoString(player->position.areaID));
+							userInterfacePointerX += strlen(areaIDtoString(player->position.areaID));
+							continue;
 						}
 					printf("%c", intToChar(uiIntData));
 					++userInterfacePointerX;
@@ -433,10 +482,9 @@ void renderUI(GameManager *game, SceneManager *scene, Player* player) {
 	}
 }
 
-void changeposition(Player* player, int x, int y, int areaID) {
+void changeposition(Player* player, int x, int y) {
 	player->position.x += x;
 	player->position.y += y;
-	player->position.areaID = areaID;
 }
 
 void interactWithNPC(SceneManager *scene) {
@@ -503,9 +551,14 @@ int canPlayerMoveThere(Player* player, SceneManager *scene, GameManager* game, i
 				updateCurrentActiveNPC(scene, findNPCwithCoordinate(scene, player->position.x + x, player->position.y + y));
 				interactWithPrincipal(scene);
 				break;
-			}
-			return 0;
 		}
+			return 0;
+	}
+	else {
+		if (game->mapData[indexOfObjectAhead + 3] - '0' != 9) {
+			player->position.areaID = game->mapData[indexOfObjectAhead + 3] - '0';
+		}
+	}
 	return 1;
 }
 
@@ -544,22 +597,22 @@ int readInput(GameManager* game, SceneManager *scene, Player *player) {
 	if (scene->isInteractionActive == 0) {
 		if (userInput == game->keybinds.moveUp) {
 			if (canPlayerMoveThere(player, scene, game, 0, -1) == 1) {
-				changeposition(player, 0, -1, 0);
+				changeposition(player, 0, -1);
 			}
 		}
 		else if (userInput == game->keybinds.moveLeft) {
 			if (canPlayerMoveThere(player, scene, game, -1, 0) == 1) {
-				changeposition(player, -1, 0, 0);
+				changeposition(player, -1, 0);
 			}
 		}
 		else if (userInput == game->keybinds.moveDown) {
 			if (canPlayerMoveThere(player, scene, game, 0, 1) == 1) {
-				changeposition(player, 0, 1, 0);
+				changeposition(player, 0, 1);
 			}
 		}
 		else if (userInput == game->keybinds.moveRight) {
 			if (canPlayerMoveThere(player, scene, game, 1, 0) == 1) {
-				changeposition(player, 1, 0, 0);
+				changeposition(player, 1, 0);
 			}
 		}
 	}
@@ -575,32 +628,16 @@ int readInput(GameManager* game, SceneManager *scene, Player *player) {
 			currentOption.eventAction(game, scene, player, currentOption.pointedDialougeID);
 		}
 	}
-	if (userInput == 'l') { // Entrance Guard
-		// To be implemenmted template for NPC spawning
-		char *npcDialouges[3] = {'\0'};
-		npcDialouges[0] = "What do you want Child?";
-		npcDialouges[1] = "You need to give me this specific item first before I tell you.";
-		npcDialouges[2] = "The principal is at the Garden";
-
-		Requirement req[] = { {0, 3, -1, 30} };
-		spawnNPC(game, scene, req, 1, 16, 31, 7, npcDialouges, 3);
-	}
-	if (userInput == 'p') { // Principal
-		// To be implemenmted template for NPC spawning
-		char* npcDialouges[1] = { '\0' };
-		npcDialouges[0] = "What? You want to complain about your grades?";
-
-		spawnNPC(game, scene, NULL, 0, 10, 21, 5, npcDialouges, 1);
-	}
 	if (userInput == 'k') { // Student
 		// To be implemenmted template for NPC spawning
 		char* npcDialouges[1] = { '\0' };
 		npcDialouges[0] = randomDialougeStudent();
 
-		spawnNPC(game, scene, NULL, 0, 10, 23, 9, npcDialouges, 1);
+		spawnNPC(game, scene, NULL, 0, 10, 23, -1, 9, npcDialouges, 1);
 	}
 	if (userInput == 'b') {
-		return 0;
+		if (game->debugMode == 0) { game->debugMode = 1; }
+		else game->debugMode = 0;
 	}
 	return 1;
 }
@@ -616,13 +653,14 @@ void updateTime(GameManager *game) {
 	}
 }
 
-void debugMode(Player* player, GameManager* game) {
+void debugMode(Player* player, GameManager* game, SceneManager *scene) {
 	int relativeTopLeftCoordinate[2] = { player->position.x - (CAMERA_WIDTH - 1) / 2, player->position.y - (CAMERA_HEIGHT - 1) / 2 };
-	printf("Player Absolute Coordinate: [%d, %d]\n", player->position.x, player->position.y);
-	printf("Camera Relative Coordinate: [%d, %d]\n", relativeTopLeftCoordinate[0], relativeTopLeftCoordinate[1]);
-	printf("Player Mental Health: %d\n", player->stats.mentalHealth);
-	printf("Time: %d%d:%d%d\n", game->gameTime.timeInMinutes / 10, game->gameTime.timeInMinutes % 10, game->gameTime.timeInSeconds % 60 / 10, (game->gameTime.timeInSeconds % 60) % 10);
-	printf("Day:  %d\n", game->gameTime.day);
+	printf("________________________________________\n");
+	printf("Player Absolute Coordinate: (%d, %d)\n", player->position.x, player->position.y);
+	printf("Camera Relative Coordinate: (%d, %d)\n", relativeTopLeftCoordinate[0], relativeTopLeftCoordinate[1]);
+	printf("Time: %d\n", game->gameTime.timeInSeconds);
+	printf("Number of NPCs: %d\n", scene->numberOfNPC);
+	printf("________________________________________\n");
 }
 
 int initiateDatas(GameManager *game) {
@@ -644,11 +682,56 @@ int initiateDatas(GameManager *game) {
 	return 1;
 }
 
+void initiateGuardNPCspawn(GameManager *game, SceneManager *scene) {
+	char* npcDialouges[3] = { '\0' };
+	npcDialouges[0] = "What do you want Child?";
+	npcDialouges[1] = "I can't tell you.";
+	npcDialouges[2] = "The principal is at the Garden";
+
+	Requirement req[] = { {0, 3, -1, 30} };
+	spawnNPC(game, scene, req, 1, 16, 31, -1, 7, npcDialouges, 3);
+}
+
+void initiatePrincipalNPCspawn(GameManager* game, SceneManager* scene) {
+	srand(time(NULL));
+	int spawnRandomizer = rand() % 4;
+	char* npcDialouges[1] = { '\0' };
+	int x = 0, y = 0, areaID = 0;
+	switch (spawnRandomizer) {
+	case 1: // Principal Office Spawn
+		x = 27;
+		y = 2;
+		areaID = 2;
+		break;
+	case 2: // Garden Spawn
+		x = 67;
+		y = 48;
+		areaID = 4;
+		break;
+	case 3: // Faculty Office Spawn
+		x = 155;
+		y = 22;
+		areaID = 7;
+		break;
+	}
+	npcDialouges[0] = "What? You want to complain about your grades?";
+
+	spawnNPC(game, scene, NULL, 0, x, y, areaID, 5, npcDialouges, 1);
+}
+
+void initiatePlayerStats(GameManager *game, Player *player, SceneManager *scene) {
+	srand(time(NULL));
+	int moneyRandomizer = rand() % 20;
+	int charismaRandomizer = rand() % 10;
+	player->stats.Pesos = 5 + moneyRandomizer;
+	player->stats.Charisma = 10 + charismaRandomizer;
+}
+
 Player initiatePlayerManager() {
 	Player player = {
-		{50, 50, 30}, // Stats: MH, PHP, CHA
+		{100, 50, 30}, // Stats: MH, PHP, CHA
 		{0}, // Items
-		{2, 31, 1}, // Position: x, y, areaID
+		{2, 31, 0}, // Position: x, y, areaID
 		0 // Number of Items
 	};
 	return player;
@@ -660,7 +743,8 @@ GameManager initiateGameManager() {
 		{0, 0}, // Relative Camera Coordinate
 		(char*)malloc(sizeof(char)), // Map Data Initial Allocation
 		(char*)malloc(sizeof(char)), // UI Data Initial Allocation
-		1 // Game Running Indicator
+		1, // Game Running Indicator
+		0 // Debug Mode
 	};
 	return game;
 }
@@ -686,12 +770,15 @@ int main(void) {
 	//printf("\33[?25h"); // Re enable cursor
 	if (initiateDatas(&game) == 0) { printf(ANSI_COLOR_RED "{No Map Data}"); return; };
 
+	initiateGuardNPCspawn(&game, &scene);
+	initiatePrincipalNPCspawn(&game, &scene);
+	initiatePlayerStats(&game, &player, &scene);
 	renderUI(&game, &scene, &player);
 	while (readInput(&game, &scene, &player) == 1) {
 		if (game.isGameRunning == 1) {
 			system("cls");
 			updateTime(&game);
-			//debugMode(&player, &game);
+			if (game.debugMode == 1) { debugMode(&player, &game, &scene); }
 			renderUI(&game, &scene, &player);
 		}
 		else { break; }

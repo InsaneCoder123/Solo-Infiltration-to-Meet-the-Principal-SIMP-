@@ -4,9 +4,9 @@ interfaceData = """ MH  mmm                    ,
                             ,
  TIME nn:ss                 ,
  DAY  d                     ,
+ LOCATION l                 ,
                             ,
  INVENTORY                  ,
- -                          ,
  -                          ,
  -                          ,
  -                          ,
@@ -77,7 +77,8 @@ charsToDecimal = {
     'c': 55,
     'n': 56,
     's': 57,
-    'd': 58
+    'd': 58,
+    'l': 59
 }
 
 maxWidth = 0

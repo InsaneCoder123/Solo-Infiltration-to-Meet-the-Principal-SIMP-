@@ -1,3 +1,8 @@
+Principal Possible Spawn Points
+Principal Office (27, 2) ; Area (11, 1) to (44, 6)
+Garden (67, 48) ; Area (62, 39) to (86, 52)
+Faculty Office (155, 22) ; Area (138, 19) to (118, 9)
+
 Map Elements
 
 0000
