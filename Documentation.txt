@@ -1,7 +1,7 @@
 Principal Possible Spawn Points
 Principal Office (27, 2) ; Area (11, 1) to (44, 6)
 Garden (67, 48) ; Area (62, 39) to (86, 52)
-Faculty Office (155, 22) ; Area (138, 19) to (118, 9)
+Faculty Office (155, 22) ; Area (138, 19) to (159, 28)
 
 Map Elements
 
@@ -22,6 +22,7 @@ Index 3
 Index 2
 0 - Is not moveable
 1 - Is moveable
+2 - Is Hidden And Not Moveable
 
 Index 1
 0 - Wall
@@ -37,7 +38,7 @@ Index 1
 
 Index 0
 0
-1
+1 
 2
 3
 4

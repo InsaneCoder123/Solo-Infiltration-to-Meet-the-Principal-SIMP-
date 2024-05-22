@@ -208,16 +208,6 @@ int isTwoCoordinatesTheSame(int x, int y, int x2, int y2) {
 	return 0;
 }
 
-char* mapAreaIDtoString(int n) {
-	char* mapName;
-	switch (n) {
-	case 1:
-		mapName = (char*)malloc(sizeof(char)*7);
-		mapName = "Garden";
-		return mapName;
-	}
-}
-
 char* areaIDtoString(int n) {
 	char* areaName;
 	switch (n) {
@@ -334,6 +324,7 @@ void spawnNPC(GameManager* game, SceneManager *scene, Requirement *requirements,
 	lastFreeSpaceInNPCList->coordinate.x = x;
 	lastFreeSpaceInNPCList->coordinate.y = y;
 	lastFreeSpaceInNPCList->id = id;
+	lastFreeSpaceInNPCList->coordinate.areaID = areaID;
 	lastFreeSpaceInNPCList->dialouge.dialouges = (char**)malloc(numberOfDialouges*sizeof(char*));
 	int dialougeIdAssignment = 0;
 	if (amountOfRequirements != 0) {
@@ -391,13 +382,19 @@ void renderUI(GameManager *game, SceneManager *scene, Player* player) {
 			// Game Screen Rendering
 
 			if (screenX < CAMERA_WIDTH) {
-				if (isTwoCoordinatesTheSame((CAMERA_WIDTH-1)/2, (CAMERA_HEIGHT-1)/2, screenPointerX, screenPointerY)) {
-					printf("@");
+				if (game->relativeCameraCoordinate[0]+screenPointerX < 0 || game->relativeCameraCoordinate[1]+screenPointerY < 0 || game->relativeCameraCoordinate[0]+screenPointerX >= TOTAL_WIDTH_MAP || game->relativeCameraCoordinate[1]+screenPointerY >= TOTAL_HEIGHT_MAP) {
+					printf(" ");
 					++screenPointerX;
 					continue;
 				}
-				if (game->relativeCameraCoordinate[0]+screenPointerX < 0 || game->relativeCameraCoordinate[1]+screenPointerY < 0 || game->relativeCameraCoordinate[0]+screenPointerX >= TOTAL_WIDTH_MAP || game->relativeCameraCoordinate[1]+screenPointerY >= TOTAL_HEIGHT_MAP) {
-					printf(" ");
+				if ((game->mapData[calculateIndexFromCoordinate(game->relativeCameraCoordinate[0] + screenPointerX, game->relativeCameraCoordinate[1] + screenPointerY,
+					TOTAL_WIDTH_MAP, MAP_DATASIZE, 2)] - '0') == 2) {
+					printf("?");
+					++screenPointerX;
+					continue;
+				}
+				if (isTwoCoordinatesTheSame((CAMERA_WIDTH-1)/2, (CAMERA_HEIGHT-1)/2, screenPointerX, screenPointerY)) {
+					printf("@");
 					++screenPointerX;
 					continue;
 				}
@@ -554,6 +551,9 @@ int canPlayerMoveThere(Player* player, SceneManager *scene, GameManager* game, i
 		}
 			return 0;
 	}
+	else if (game->mapData[indexOfObjectAhead + 2] - '0' == 2) {
+		return 0;
+	}
 	else {
 		if (game->mapData[indexOfObjectAhead + 3] - '0' != 9) {
 			player->position.areaID = game->mapData[indexOfObjectAhead + 3] - '0';
@@ -639,13 +639,28 @@ int readInput(GameManager* game, SceneManager *scene, Player *player) {
 		if (game->debugMode == 0) { game->debugMode = 1; }
 		else game->debugMode = 0;
 	}
+	if (game->debugMode == 1) {
+		if (userInput == '4') {
+			changeposition(player, -1, 0);
+		}
+		if (userInput == '8') {
+			changeposition(player, 0, -1);
+		}
+		if (userInput == '6') {
+			changeposition(player, 1, 0);
+		}
+		if (userInput == '2') {
+			changeposition(player, 0, 1);
+		}
+	}
+
 	return 1;
 }
 
 
 void updateTime(GameManager *game) {
 	// Update the time with 540 seconds as the starting time in order for the game to start at 9:00
-	game->gameTime.timeInSeconds = 540 + (time(NULL) - game->gameTime.timeWhenDayStarted) * 60;
+	game->gameTime.timeInSeconds = 540 + (time(NULL) - game->gameTime.timeWhenDayStarted) * 3;
 	game->gameTime.timeInMinutes = game->gameTime.timeInSeconds / 60;
 	if (game->gameTime.timeInSeconds >= 1440) {
 		game->gameTime.timeWhenDayStarted = time(NULL);
@@ -660,7 +675,40 @@ void debugMode(Player* player, GameManager* game, SceneManager *scene) {
 	printf("Camera Relative Coordinate: (%d, %d)\n", relativeTopLeftCoordinate[0], relativeTopLeftCoordinate[1]);
 	printf("Time: %d\n", game->gameTime.timeInSeconds);
 	printf("Number of NPCs: %d\n", scene->numberOfNPC);
+	printf("Principal Location: %s\n", areaIDtoString(scene->npcList[1].coordinate.areaID));
+	printf("Principal Location Data Index 2: %c\n", game->mapData[calculateIndexFromCoordinate(scene->npcList[1].coordinate.x, scene->npcList[1].coordinate.y, TOTAL_WIDTH_MAP, MAP_DATASIZE, 2)]);
 	printf("________________________________________\n");
+}
+
+void changeMapState(GameManager *game, int areaID, int isHide) {
+	int x1 = 0, y1 = 0, x2 = 0, y2=0;
+	switch (areaID) {
+	case 2: // Set the bounds of the coordinate to the Principal's Office area
+		x1 = 11;
+		y1 = 1;
+		x2 = 44;
+		y2 = 6;
+		break;
+	case 4: // Garden
+		x1 = 62;
+		y1 = 39;
+		x2 = 86;
+		y2 = 52;
+		break;
+	case 7: // Faculty Office
+		x1 = 138;
+		y1 = 19;
+		x2 = 159;
+		y2 = 28;
+		break;
+	}
+
+	// Iliterates through the map data equivalent within the set bound and set all their first data index to 1 to indicate it needs to be hidden
+	for (int y = y1; y <= y2; y++) {
+		for (int x = x1; x <= x2; x++) {
+			game->mapData[calculateIndexFromCoordinate(x, y, TOTAL_WIDTH_MAP, MAP_DATASIZE, 2)] = 2 + '0';
+		}
+	}
 }
 
 int initiateDatas(GameManager *game) {
@@ -717,6 +765,9 @@ void initiatePrincipalNPCspawn(GameManager* game, SceneManager* scene) {
 	npcDialouges[0] = "What? You want to complain about your grades?";
 
 	spawnNPC(game, scene, NULL, 0, x, y, areaID, 5, npcDialouges, 1);
+	changeMapState(game, 2, 1);
+	changeMapState(game, 4, 1);
+	changeMapState(game, 7, 1);
 }
 
 void initiatePlayerStats(GameManager *game, Player *player, SceneManager *scene) {
@@ -774,6 +825,8 @@ int main(void) {
 	initiatePrincipalNPCspawn(&game, &scene);
 	initiatePlayerStats(&game, &player, &scene);
 	renderUI(&game, &scene, &player);
+
+	
 	while (readInput(&game, &scene, &player) == 1) {
 		if (game.isGameRunning == 1) {
 			system("cls");
