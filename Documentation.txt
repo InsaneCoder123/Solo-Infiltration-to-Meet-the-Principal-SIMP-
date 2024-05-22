@@ -1,6 +1,18 @@
 Map Elements
 
-00
+0000
+
+Index 3
+0 - Entrance
+1 - Library
+2 - Principal Office
+3 - Study Area
+4 - Garden
+5 - Glec
+6 - GYM
+7 - Faculty Office
+8 - Hallway
+9 - NONE
 
 Index 2
 0 - Is not moveable
@@ -10,13 +22,13 @@ Index 1
 0 - Wall
 1 - Empty Space Inside the Map
 2 - Empty Space Outside the Map
-3
-4
-5
-6
-7
-8
-9
+3 - _ Decoration
+4 - / Decoration
+5 - \ Decoration
+6 - | Decoration
+7 - - Decoration
+8 - + Decoration
+9 - = Decoration
 
 Index 0
 0

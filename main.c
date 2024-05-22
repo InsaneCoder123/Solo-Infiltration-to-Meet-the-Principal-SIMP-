@@ -19,8 +19,8 @@
 #define CAMERA_WIDTH 41
 #define CAMERA_HEIGHT 21
 
-#define TOTAL_WIDTH_MAP 149
-#define TOTAL_HEIGHT_MAP 43
+#define TOTAL_WIDTH_MAP 165
+#define TOTAL_HEIGHT_MAP 54
 
 #define TOTAL_WIDTH_UI 28
 #define TOTAL_HEIGHT_UI 21
@@ -30,7 +30,7 @@
 #define DEFAULT_MOVE_DOWN 's'
 #define DEFAULT_MOVE_RIGHT 'd'
 
-#define MAP_DATASIZE 3
+#define MAP_DATASIZE 4
 #define UI_DATASIZE 2
 
 typedef struct {
@@ -220,7 +220,7 @@ char* mapAreaIDtoString(int n) {
 char mapTypeToChar(int n) {
 	// Converts an int into a char
 	// Used in the conversion from map data to a char representation of the data to use in the render of the map data
-	char mapTypeArr[] = ".# ";
+	char mapTypeArr[] = ".# _/\\|-+=";
 	return mapTypeArr[n];
 }
 
@@ -469,6 +469,19 @@ void interactWithPrincipal(SceneManager* scene) {
 	scene->isInteractionActive = 1;
 }
 
+
+void changeStatIfRequirementMet(GameManager* game, SceneManager* scene, Player* player, int dialougeID) {
+	clearPromptAndOptions(game, scene, player);
+}
+
+void interactWithStudent(SceneManager *scene) {
+	updateCurrentActivePrompt(scene, scene->currentActiveNPC.dialouge.dialouges[0], 0, 0);
+	AddOption(scene, "Talk (+10 CHA) (+1 HR)", 0, -1, exitInteractionWithNPC);
+	AddOption(scene, "Beg (+10 PHP) (-10 MH)", 1, -1, exitInteractionWithNPC);
+	AddOption(scene, "Leave", 2, -1, exitInteractionWithNPC);
+	scene->isInteractionActive = 1;
+}
+
 int canPlayerMoveThere(Player* player, SceneManager *scene, GameManager* game, int x, int y) {
 	// Checks if a player can move to a position forward. Gets the data of the object the player wants to move to and then decide
 	// an action depending on the attached data on that object
@@ -478,6 +491,10 @@ int canPlayerMoveThere(Player* player, SceneManager *scene, GameManager* game, i
 			// Refer to documentation. A [7] attached data in the first index refers to a Guard NPC occupying that area
 			// A player attempting to move to that area will trigger an interaction with the NPC.
 			// The NPC in the coordinate the player attempted to move to will become the current active NPC that can be accessed in the scene manager
+			case 9:
+				updateCurrentActiveNPC(scene, findNPCwithCoordinate(scene, player->position.x + x, player->position.y + y));
+				interactWithStudent(scene);
+				break;
 			case 7:
 				updateCurrentActiveNPC(scene, findNPCwithCoordinate(scene, player->position.x + x, player->position.y + y)); 
 				interactWithNPC(scene);
@@ -500,6 +517,24 @@ void addItemInInventory(Player* player, int id, int type, int statModifier, int 
 	lastEmptySpotInventory.statModifier = statModifier;
 	lastEmptySpotInventory.quantity = quantity;
 	++(player->itemsNumber);
+}
+
+
+char* randomDialougeStudent() {
+	int* dialouge = '\0';
+	srand(time(NULL));
+	int r = rand() % 3;
+	switch (r) {
+		case 1:
+			dialouge = (char*)malloc(sizeof(char)*(strlen("Oh, how are you?")));
+			strcpy(dialouge, "Oh, how are you?");
+			break;
+		case 2:
+			dialouge = (char*)malloc(sizeof(char) * (strlen("Hello, good weather today huh.")));
+			strcpy(dialouge, "Hello, good weather today huh.");
+			break;
+	}
+	return dialouge;
 }
 
 
@@ -548,7 +583,7 @@ int readInput(GameManager* game, SceneManager *scene, Player *player) {
 		npcDialouges[2] = "The principal is at the Garden";
 
 		Requirement req[] = { {0, 3, -1, 30} };
-		spawnNPC(game, scene, req, 1, 10, 18, 7, npcDialouges, 3);
+		spawnNPC(game, scene, req, 1, 16, 31, 7, npcDialouges, 3);
 	}
 	if (userInput == 'p') { // Principal
 		// To be implemenmted template for NPC spawning
@@ -560,7 +595,7 @@ int readInput(GameManager* game, SceneManager *scene, Player *player) {
 	if (userInput == 'k') { // Student
 		// To be implemenmted template for NPC spawning
 		char* npcDialouges[1] = { '\0' };
-		npcDialouges[0] = "Oh, what do you want?";
+		npcDialouges[0] = randomDialougeStudent();
 
 		spawnNPC(game, scene, NULL, 0, 10, 23, 9, npcDialouges, 1);
 	}
@@ -613,7 +648,7 @@ Player initiatePlayerManager() {
 	Player player = {
 		{50, 50, 30}, // Stats: MH, PHP, CHA
 		{0}, // Items
-		{2, 21, 1}, // Position: x, y, areaID
+		{2, 31, 1}, // Position: x, y, areaID
 		0 // Number of Items
 	};
 	return player;
