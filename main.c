@@ -142,6 +142,10 @@ void AddOption(SceneManager* scene, char* dialouge, int id, int pointedDialougeI
 void updateCurrentActivePrompt(SceneManager *scene, char* dialouge, int choice, int dialougeStage);
 void changeMapState(GameManager* game, int areaID, int isHide);
 void deleteCurrentActiveNPC(GameManager* game, SceneManager* scene);
+void addItemInInventory(Player* player, int id, int type, int statModifier, int quantity);
+void removeItemInInventory(Player* player, int itemIndex);
+char *randomDialougeStudent();
+int spawnNPC(GameManager* game, SceneManager* scene, Requirement* requirements, int amountOfRequirements, int x, int y, int areaID, int id, char** dialouges, int numberOfDialouges);
 
 void clearConsole() {
 	printf("\033[2J\033[1;1H");
@@ -164,22 +168,50 @@ void exitInteractionWithNPC(GameManager* game, SceneManager *scene, Player* play
 	scene->isInteractionActive = 0;
 }
 
-void goToDialougeAndOptions(GameManager *game, SceneManager *scene, Player *player, int dialougeID) {
+void goToDialougeAndOptions(GameManager *game, SceneManager *scene, Player *player, int dialougeID, int dialougeStage) {
 	clearPromptAndOptions(game, scene, player);
-	updateCurrentActivePrompt(scene, scene->currentActiveNPC.dialouge.dialouges[dialougeID], 0, 10, NULL);
+	updateCurrentActivePrompt(scene, scene->currentActiveNPC.dialouge.dialouges[dialougeID], 0, dialougeStage);
 	AddOption(scene, "Leave", 0, -1, exitInteractionWithNPC);
+}
+
+int doesPlayerHaveItem(Player *player, int itemIdRequirement) {
+	for (int i = 0; i < player->itemsNumber; i++) {
+		if (player->inventory[i].id == itemIdRequirement) {
+			return i;
+		}
+	}
+	return -1;
 }
 
 void goToDialougeAndOptionsIfRequirementMet(GameManager* game, SceneManager* scene, Player* player, int dialougeID) {
 	clearPromptAndOptions(game, scene, player);
 	switch (scene->currentActiveNPC.requirements[dialougeID-2].type) {
+	case 1: // Item Requirement
+		if (doesPlayerHaveItem(player, scene->currentActiveNPC.requirements[0].itemID) != -1) {
+			updateCurrentActivePrompt(scene, scene->currentActiveNPC.dialouge.dialouges[dialougeID], 0, 30, NULL);
+			AddOption(scene, "Leave", 0, -1, exitInteractionWithNPC);
+			removeItemInInventory(player, doesPlayerHaveItem(player, scene->currentActiveNPC.requirements[0].itemID));
+		}
+		else {
+			goToDialougeAndOptions(game, scene, player, 1, 11);
+		}
+		break;
+	case 2: // PHP Requirement
+		if (player->stats.Pesos >= scene->currentActiveNPC.requirements[0].statRequired) {
+			updateCurrentActivePrompt(scene, scene->currentActiveNPC.dialouge.dialouges[dialougeID], 0, 30, NULL);
+			AddOption(scene, "Leave", 0, -1, exitInteractionWithNPC);
+		}
+		else {
+			goToDialougeAndOptions(game, scene, player, 1, 10);
+		}
+		break;
 	case 3: // CHA Requirement
-		if (player->stats.Charisma >= scene->currentActiveNPC.requirements[dialougeID-2].statRequired) {
+		if (player->stats.Charisma >= scene->currentActiveNPC.requirements[0].statRequired) {
 			updateCurrentActivePrompt(scene, scene->currentActiveNPC.dialouge.dialouges[dialougeID], 0, 30, NULL);
 			AddOption(scene, "Leave", 0, -1, exitInteractionWithNPC);
 		}
 		else { 
-			goToDialougeAndOptions(game, scene, player, 1);
+			goToDialougeAndOptions(game, scene, player, 1, 10);
 		}
 		break;
 	}
@@ -219,6 +251,17 @@ int isTwoCoordinatesTheSame(int x, int y, int x2, int y2) {
 		return 1;
 	}
 	return 0;
+}
+
+char* itemIDtoString(int n) {
+	char* itemName;
+	switch (n) {
+	case 1:
+		itemName = (char*)malloc(sizeof(char) * strlen(ANSI_COLOR_BLUE "GUARD KEY" ANSI_COLOR_RESET));
+		itemName = ANSI_COLOR_BLUE "GUARD KEY" ANSI_COLOR_RESET;
+		return itemName;
+	}
+	return NULL;
 }
 
 char* areaIDtoString(int n) {
@@ -295,6 +338,9 @@ NPC findNPCwithCoordinate(SceneManager *scene, int x, int y) {
 			return scene->npcList[i];
 		}
 	}
+	NPC temp;
+	temp.id = -100;
+	return temp;
 }
 
 void updateCameraRelativeCoordinate(GameManager *game, Player *player) {
@@ -329,9 +375,11 @@ void updateCurrentActivePrompt(SceneManager *scene, char *dialouge, int choice, 
 }
 
 
-void spawnNPC(GameManager* game, SceneManager *scene, Requirement *requirements, int amountOfRequirements, int x, int y, int areaID, int id, char **dialouges, int numberOfDialouges) {
+int spawnNPC(GameManager* game, SceneManager *scene, Requirement *requirements, int amountOfRequirements, int x, int y, int areaID, int id, char **dialouges, int numberOfDialouges) {
 	// Spawns an NPC by initializing its coordinates, dialouges and then modifying the map data to indicate the presence of the NPC
 	// Additionally, add the NPC to the scene manager NPC list
+	if (findNPCwithCoordinate(scene, x, y).id != -100) { return 0; }
+	scene->npcList = (NPC*)realloc(scene->npcList, sizeof(NPC) * (scene->numberOfNPC + 1));
 	NPC *lastFreeSpaceInNPCList = &scene->npcList[scene->numberOfNPC];
 	lastFreeSpaceInNPCList->coordinate.x = x;
 	lastFreeSpaceInNPCList->coordinate.y = y;
@@ -360,7 +408,7 @@ void spawnNPC(GameManager* game, SceneManager *scene, Requirement *requirements,
 	game->mapData[calculateIndexFromCoordinate(x, y, TOTAL_WIDTH_MAP, MAP_DATASIZE, 2)] = 0 + '0';
 
 	++scene->numberOfNPC;
-	scene->npcList = (NPC*)realloc(scene->npcList, sizeof(NPC)*(scene->numberOfNPC+1));
+	return 1;
 }
 
 char onOption(int currentOption, int optionID) {
@@ -386,6 +434,8 @@ void renderUI(GameManager *game, SceneManager *scene, Player* player) {
 
 	int userInterfacePointerX = 0;
 	int userInterfacePointerY = 0;
+
+	int currentInventorySlot = 0;
 
 	for (int screenY = 0; screenY < SCREEN_HEIGHT; screenY++) {
 		for (int screenX = 0; screenX < SCREEN_WIDTH; screenX++) {
@@ -435,39 +485,51 @@ void renderUI(GameManager *game, SceneManager *scene, Player* player) {
 			if (screenX >= CAMERA_WIDTH) {
 				if (screenY < TOTAL_HEIGHT_UI) {
 					int currentInterfaceIndex = calculateIndexFromCoordinate(userInterfacePointerX, userInterfacePointerY, TOTAL_WIDTH_UI, UI_DATASIZE, 0);
-					char uiData[2] = { game->interfaceData[currentInterfaceIndex], game->interfaceData[currentInterfaceIndex + 1] };
-					int uiIntData = atoi(uiData);
-					switch (uiIntData) {
-						case 53:
-							printf("%03d", player->stats.mentalHealth);
-							userInterfacePointerX += 3;
-							continue;
-						case 54:
-							printf("%03d", player->stats.Pesos);
-							userInterfacePointerX += 3;
-							continue;
-						case 55:
-							printf("%03d", player->stats.Charisma);
-							userInterfacePointerX += 3;
-							continue;
-						case 56:
-							printf("%02d", game->gameTime.timeInMinutes);
-							userInterfacePointerX += 2;
-							continue;
-						case 57:
-							printf("%02d", game->gameTime.timeInSeconds % 60);
-							userInterfacePointerX += 2;
-							continue;
-						case 58:
-							printf("%d", game->gameTime.day);
-							++userInterfacePointerX;
-							continue;
-						case 59:
-							printf("%s", areaIDtoString(player->position.areaID));
-							userInterfacePointerX += strlen(areaIDtoString(player->position.areaID));
-							continue;
-						}
-					printf("%c", intToChar(uiIntData));
+					if (currentInterfaceIndex < TOTAL_WIDTH_UI*TOTAL_HEIGHT_UI*UI_DATASIZE) {
+						char uiData[2] = { game->interfaceData[currentInterfaceIndex], game->interfaceData[currentInterfaceIndex + 1] };
+						int uiIntData = atoi(uiData);
+						switch (uiIntData) {
+							case 27:
+								if (itemIDtoString(player->inventory[currentInventorySlot].id) != NULL) {
+									printf(" - ");
+									printf("%s", itemIDtoString(player->inventory[currentInventorySlot].id));
+									printf(" - ");
+								}
+								else { printf(" [EMPTY SLOT]"); }
+								++currentInventorySlot;
+								userInterfacePointerX += TOTAL_WIDTH_UI * TOTAL_HEIGHT_UI * UI_DATASIZE;
+								continue;
+							case 53:
+								printf("%03d", player->stats.mentalHealth);
+								userInterfacePointerX += 3;
+								continue;
+							case 54:
+								printf("%03d", player->stats.Pesos);
+								userInterfacePointerX += 3;
+								continue;
+							case 55:
+								printf("%03d", player->stats.Charisma);
+								userInterfacePointerX += 3;
+								continue;
+							case 56:
+								printf("%02d", game->gameTime.timeInMinutes);
+								userInterfacePointerX += 2;
+								continue;
+							case 57:
+								printf("%02d", game->gameTime.timeInSeconds % 60);
+								userInterfacePointerX += 2;
+								continue;
+							case 58:
+								printf("%d", game->gameTime.day);
+								++userInterfacePointerX;
+								continue;
+							case 59:
+								printf("%s", areaIDtoString(player->position.areaID));
+								userInterfacePointerX += strlen(areaIDtoString(player->position.areaID));
+								continue;
+							}
+						printf("%c", intToChar(uiIntData));
+					}
 					++userInterfacePointerX;
 					}
 				}
@@ -504,7 +566,7 @@ void renderUI(GameManager *game, SceneManager *scene, Player* player) {
 	if (scene->gainPHP != 0) {
 		printf(ANSI_COLOR_GREEN "You actually begged for money, you lost some pride and self-esteem " ANSI_COLOR_RESET);
 		printf(ANSI_COLOR_GREEN "(+%d PHP)" ANSI_COLOR_RESET, scene->gainPHP);
-		printf(ANSI_COLOR_RED " (-10 MH)\n" ANSI_COLOR_RESET);
+		printf(ANSI_COLOR_RED " (-%d MH)\n" ANSI_COLOR_RESET, scene->gainPHP);
 		if (time(NULL) - game->gameTime.timeSnapshot[2] >= 5) {
 			scene->gainPHP = 0;
 		}
@@ -513,6 +575,9 @@ void renderUI(GameManager *game, SceneManager *scene, Player* player) {
 	printf("\n");
 	if (scene->activePrompt.dialougeStage == 10) {
 		printf("(You require %d %s to complete action)\n", scene->currentActiveNPC.requirements[0].statRequired,requirementTypeToString(scene->currentActiveNPC.requirements[0].type));
+	}
+	if (scene->activePrompt.dialougeStage == 11) { 
+		printf("(You require %s to complete action)\n", itemIDtoString(scene->currentActiveNPC.requirements[0].type));
 	}
 
 	if (scene->activePrompt.option != NULL) {
@@ -528,7 +593,7 @@ void changeposition(Player* player, int x, int y) {
 	player->position.y += y;
 }
 
-void interactWithNPC(SceneManager *scene) {
+void interactWithEntranceGuard(SceneManager *scene) {
 	// The current prompt will become the dialouge stored in that particular type of NPC
 	// To be implemented: Template of interaction for each NPC
 	updateCurrentActivePrompt(scene, scene->currentActiveNPC.dialouge.dialouges[0], 0, 0);
@@ -567,10 +632,11 @@ void talkToStudentAndExit(GameManager* game, SceneManager* scene, Player* player
 	srand(time(NULL));
 	int statRandomizer = 10 + (rand() % 10);
 	player->stats.Charisma += statRandomizer;
-	game->gameTime.timeWhenDayStarted -= 20;
+	game->gameTime.timeWhenDayStarted -= 10;
 	game->gameTime.timeSnapshot[2] = time(NULL);
 	scene->gainCHA = statRandomizer;
 	exitInteractionWithNPC(game, scene, player, 0);
+	deleteCurrentActiveNPC(game, scene);
 }
 
 void begToStudentAndExit(GameManager* game, SceneManager* scene, Player* player, int dialougeID) {
@@ -592,6 +658,44 @@ void interactWithStudent(SceneManager *scene) {
 	scene->isInteractionActive = 1;
 }
 
+void spawnStudentNPC(GameManager *game, SceneManager *scene) {
+	// Refer to documentation for specific area bonds for the different areas
+	srand(time(NULL));
+	int areaRandomizer = rand() % 4;
+	int xRandomizer = 0, yRandomizer = 0, areaID = 0;
+	if (game->gameTime.timeSnapshot[4] == 0) {
+		game->gameTime.timeSnapshot[4] = time(NULL);
+	}
+	if (time(NULL) - game->gameTime.timeSnapshot[4] >= 10) {
+		switch (areaRandomizer) {
+		case 0: // Study Area
+			areaID = 3;
+			xRandomizer = 4 + rand() % (55-4+1);
+			yRandomizer = 41 + rand() % (51-41+1);
+			break;
+		case 1: // Gym
+			areaID = 6;
+			xRandomizer = 90 + rand() % (163-90+1);
+			yRandomizer = 39 + rand() % (47-39+1);
+			break;
+		case 2: // Glecroom
+			areaID = 5;
+			xRandomizer = 68 + rand() % (94-68+1);
+			yRandomizer = 12 + rand() % (25-12+1);
+			break;
+		case 3: // Library
+			areaID = 1;
+			xRandomizer = 21 + rand() % (45-21+1);
+			yRandomizer = 12 + rand() % (25-12+1);
+			break;
+		}
+		char* npcDialouges[1] = { '\0' };
+		npcDialouges[0] = randomDialougeStudent();
+		game->gameTime.timeSnapshot[4] = 0;
+		spawnNPC(game, scene, NULL, -1, xRandomizer, yRandomizer, areaID, 9, npcDialouges, 1);
+	}
+}
+
 int canPlayerMoveThere(Player* player, SceneManager *scene, GameManager* game, int x, int y) {
 	// Checks if a player can move to a position forward. Gets the data of the object the player wants to move to and then decide
 	// an action depending on the attached data on that object
@@ -607,7 +711,7 @@ int canPlayerMoveThere(Player* player, SceneManager *scene, GameManager* game, i
 			break;
 		case 7:
 			updateCurrentActiveNPC(scene, findNPCwithCoordinate(scene, player->position.x + x, player->position.y + y));
-			interactWithNPC(scene);
+			interactWithEntranceGuard(scene);
 			break;
 		case 5:
 			updateCurrentActiveNPC(scene, findNPCwithCoordinate(scene, player->position.x + x, player->position.y + y));
@@ -649,12 +753,23 @@ int canPlayerMoveThere(Player* player, SceneManager *scene, GameManager* game, i
 
 void addItemInInventory(Player* player, int id, int type, int statModifier, int quantity) {
 	// Add item to inventory
-	Items lastEmptySpotInventory = player->inventory[player->itemsNumber - 1];
-	lastEmptySpotInventory.id = id;
-	lastEmptySpotInventory.type = type;
-	lastEmptySpotInventory.statModifier = statModifier;
-	lastEmptySpotInventory.quantity = quantity;
+	player->inventory[player->itemsNumber].id = id;
+	player->inventory[player->itemsNumber].type = type;
+	player->inventory[player->itemsNumber].statModifier = statModifier;
+	player->inventory[player->itemsNumber].quantity = quantity;
 	++(player->itemsNumber);
+}
+
+void removeItemInInventory(Player* player, int itemIndex) {
+	for (int i = 0; i < player->itemsNumber; i++) {
+		if (i == itemIndex) {
+			player->inventory[i] = player->inventory[i + 1];
+			Items temp = {-1, -1, -1, -1};
+			player->inventory[i + 1] = temp;
+			break;
+		}
+	}
+	--player->itemsNumber;
 }
 
 
@@ -747,9 +862,9 @@ int readInput(GameManager* game, SceneManager *scene, Player *player) {
 
 void updateTime(GameManager *game) {
 	// Update the time with 540 seconds as the starting time in order for the game to start at 9:00
-	game->gameTime.timeInSeconds = 540 + (time(NULL) - game->gameTime.timeWhenDayStarted) * 3;
+	game->gameTime.timeInSeconds = 540 + (time(NULL) - game->gameTime.timeWhenDayStarted) * 6;
 	game->gameTime.timeInMinutes = game->gameTime.timeInSeconds / 60;
-	if (game->gameTime.timeInSeconds >= 1440) {
+	if (game->gameTime.timeInSeconds >= 1020) {
 		game->gameTime.timeWhenDayStarted = time(NULL);
 		++game->gameTime.day;
 	}
@@ -836,7 +951,7 @@ void initiateGuardNPCspawn(GameManager *game, SceneManager *scene) {
 		break;
 	}
 
-	Requirement req[] = { {0, 3, -1, 30} };
+	Requirement req[] = { {0, 1, 1, -1} };
 	spawnNPC(game, scene, req, 1, 16, 31, -1, 7, npcDialouges, 3);
 }
 
@@ -961,7 +1076,7 @@ GameManager initiateGameManager() {
 
 SceneManager initiateSceneManager() {
 	SceneManager scene = {
-		(NPC*)malloc(sizeof(NPC)), // NPC List Initial Allocation
+		NULL, // NPC List Initial Allocation
 		NULL, // Current NPC Interacted Initialization
 		NULL, // Current Active Prompt Initialization
 		0, // Current Lost CHA
@@ -988,8 +1103,11 @@ int main(void) {
 	initiatePrincipalNPCspawn(&game, &scene);
 	initiateGuardNPCspawn(&game, &scene);
 	initiatePlayerStats(&game, &player, &scene);
-	renderUI(&game, &scene, &player);
+
+	addItemInInventory(&player, 1, 0, -1, 1);
 	
+	renderUI(&game, &scene, &player);
+
 	while (readInput(&game, &scene, &player) == 1) {
 		if (game.isGameRunning == 1) {
 			clearConsole();
@@ -997,6 +1115,7 @@ int main(void) {
 			if (game.debugMode == 1) { debugMode(&player, &game, &scene); }
 			renderUI(&game, &scene, &player);
 			reducePlayerStatRandomly(&game, &scene, &player);
+			spawnStudentNPC(&game, &scene);
 		}
 		else { break; }
 	}
