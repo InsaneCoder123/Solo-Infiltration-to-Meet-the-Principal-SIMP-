@@ -678,6 +678,8 @@ void endGame(GameManager* game, SceneManager* scene, Player* player, int dialoug
 	printf("Congrats! You have met the Principal.");
 	printf("\n\n\n\n\n\n");
 	printf("Game Developed by:\n");
+	printf("Kem Philip S. David\n");
+	printf("Excel Duran\n\n\n");
 	printf("Game Project made for CPE162\n\n\n");
 	printf("Thanks for Playing!!!\n\n\n\n\n");
 	printf("Statistics:\n");
