@@ -15,6 +15,14 @@ GYM - (90, 39) to (163, 47)
 GLECROOM - (68, 12) to (94, 25)
 LIBRARY - (21, 12) to (45, 25)
 
+Principal Room Blockage
+Principal Office - (25, 8) to (30, 8)
+Garden - (71, 37) to (76, 37)
+Faculty office - (142, 30) to (147, 30)
+
+
+
+
 Map Elements
 
 0000
@@ -135,3 +143,10 @@ typedef struct {
 	int itemID; // If -1, it is not needed
 	int statRequired; // The corresponding amount of stat requirement for the particular stat requirement
 } Requirement;
+
+typedef struct {
+	int id;
+	int type;
+	int quantity;
+	int statModifier;
+} Items;

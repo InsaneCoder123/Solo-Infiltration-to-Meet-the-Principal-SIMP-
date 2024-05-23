@@ -55,6 +55,11 @@ typedef struct {
 
 typedef struct {
 	int id;
+	Position coordinate;
+} DroppedItem;
+
+typedef struct {
+	int id;
 	int type;
 	int quantity;
 	int statModifier;
@@ -123,6 +128,8 @@ typedef struct {
 typedef struct {
 	Keybinds keybinds;
 	GameTime gameTime;
+	DroppedItem itemList[13];
+	int itemNumberInMap;
 	int relativeCameraCoordinate[2];
 	char* mapData;
 	char* interfaceData;
@@ -382,6 +389,7 @@ int spawnNPC(GameManager* game, SceneManager *scene, Requirement *requirements, 
 	// Spawns an NPC by initializing its coordinates, dialouges and then modifying the map data to indicate the presence of the NPC
 	// Additionally, add the NPC to the scene manager NPC list
 	if (findNPCwithCoordinate(scene, x, y).id != -100) { return 0; }
+	if (game->mapData[calculateIndexFromCoordinate(x, y, TOTAL_WIDTH_MAP, MAP_DATASIZE, 0)] == '1') { return 0; }
 	scene->npcList = (NPC*)realloc(scene->npcList, sizeof(NPC) * (scene->numberOfNPC + 1));
 	NPC *lastFreeSpaceInNPCList = &scene->npcList[scene->numberOfNPC];
 	lastFreeSpaceInNPCList->coordinate.x = x;
@@ -455,6 +463,12 @@ void renderUI(GameManager *game, SceneManager *scene, Player* player) {
 				if ((game->mapData[calculateIndexFromCoordinate(game->relativeCameraCoordinate[0] + screenPointerX, game->relativeCameraCoordinate[1] + screenPointerY,
 					TOTAL_WIDTH_MAP, MAP_DATASIZE, 2)] - '0') == 2) {
 					printf("?");
+					++screenPointerX;
+					continue;
+				}
+				if ((game->mapData[calculateIndexFromCoordinate(game->relativeCameraCoordinate[0] + screenPointerX, game->relativeCameraCoordinate[1] + screenPointerY,
+					TOTAL_WIDTH_MAP, MAP_DATASIZE, 0)] - '0') == 1) {
+					printf(ANSI_COLOR_YELLOW "$" ANSI_COLOR_RESET);
 					++screenPointerX;
 					continue;
 				}
@@ -702,6 +716,30 @@ void spawnStudentNPC(GameManager *game, SceneManager *scene) {
 	}
 }
 
+int removeDroppedItem(GameManager* game, SceneManager* scene, int indexOfObjectAhead, int x, int y) {
+	int itemID = 0;
+	game->mapData[indexOfObjectAhead] = 0 + '0';
+	for (int i = 0; i < game->itemNumberInMap; i++) {
+		if (isTwoCoordinatesTheSame(game->itemList[i].coordinate.x, game->itemList[i].coordinate.y, x, y)) {
+			itemID = game->itemList[i].id;
+			game->itemList[i].id = 0;
+			break;
+		}
+	}
+	--game->itemNumberInMap;
+	return itemID;
+
+}
+
+void moveDroppedItemToInventory(GameManager *game, SceneManager *scene, Player *player, int indexOfObjectAhead, int x, int y) {
+	switch (removeDroppedItem(game, scene, indexOfObjectAhead, x, y)) {
+	case 1:
+		addItemInInventory(player, 1, 0, -1, 1);
+		break;
+	}
+
+}
+
 int canPlayerMoveThere(Player* player, SceneManager *scene, GameManager* game, int x, int y) {
 	// Checks if a player can move to a position forward. Gets the data of the object the player wants to move to and then decide
 	// an action depending on the attached data on that object
@@ -711,6 +749,9 @@ int canPlayerMoveThere(Player* player, SceneManager *scene, GameManager* game, i
 			// Refer to documentation. A [7] attached data in the first index refers to a Guard NPC occupying that area
 			// A player attempting to move to that area will trigger an interaction with the NPC.
 			// The NPC in the coordinate the player attempted to move to will become the current active NPC that can be accessed in the scene manager
+		case 1:
+			moveDroppedItemToInventory(game, scene, player, indexOfObjectAhead, player->position.x + x, player->position.y + y);
+			return 1;
 		case 9:
 			updateCurrentActiveNPC(scene, findNPCwithCoordinate(scene, player->position.x + x, player->position.y + y));
 			interactWithStudent(scene);
@@ -1060,8 +1101,40 @@ void reducePlayerStatRandomly(GameManager *game, SceneManager *scene, Player *pl
 	}
 }
 
-void spawnGuardKey(SceneManager *scene) {
-	rands(time(NULL));
+void spawnItem(GameManager *game, SceneManager *scene, DroppedItem item) {
+	game->mapData[calculateIndexFromCoordinate(item.coordinate.x, item.coordinate.y, TOTAL_WIDTH_MAP, MAP_DATASIZE, 0)] = 1 + '0';
+	++game->itemNumberInMap;
+	for (int i = 0; i < game->itemNumberInMap; i++) {
+		if (game->itemList[i].id == 0) {
+			game->itemList[i] = item;
+			break;
+		}
+	}
+
+}
+
+void spawnGuardKey(GameManager *game, SceneManager *scene) {
+	srand(time(NULL));
+	int spawnRandomizer = rand() % 3;
+	DroppedItem item;
+	item.id = 1;
+	switch (spawnRandomizer) {
+	case 0:
+		item.coordinate.x = 163;
+		item.coordinate.y = 47;
+		spawnItem(game, scene, item);
+		break;
+	case 1:
+		item.coordinate.x = 92;
+		item.coordinate.y = 12;
+		spawnItem(game, scene, item);
+		break;
+	case 2:
+		item.coordinate.x = 51;
+		item.coordinate.y = 4;
+		spawnItem(game, scene, item);
+		break;
+	}
 }
 
 Player initiatePlayerManager() {
@@ -1077,6 +1150,8 @@ GameManager initiateGameManager() {
 	GameManager game = {
 		{DEFAULT_MOVE_UP, DEFAULT_MOVE_LEFT, DEFAULT_MOVE_DOWN, DEFAULT_MOVE_RIGHT}, // Navigation keybinds
 		{{0}, 0, 0, 1, time(NULL)}, // Game Time
+		{0}, // Item List in Map
+		0, // Total Item in Map
 		{0, 0}, // Relative Camera Coordinate
 		(char*)malloc(sizeof(char)), // Map Data Initial Allocation
 		(char*)malloc(sizeof(char)), // UI Data Initial Allocation
@@ -1116,7 +1191,10 @@ int main(void) {
 	initiateGuardNPCspawn(&game, &scene);
 	initiatePlayerStats(&game, &player, &scene);
 
-	addItemInInventory(&player, 1, 0, -1, 1);
+	if (scene.npcList[1].requirements[0].type == 1) {
+		spawnGuardKey(&game, &scene);
+	}
+
 	
 	renderUI(&game, &scene, &player);
 
