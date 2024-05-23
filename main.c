@@ -95,10 +95,13 @@ typedef struct {
 	int currentOption;
 	int numberOfOptions;
 	int dialougeStage;
+	int attachedDataType;
+	char* attachedDataString;
 	Option* option;
 } ActivePrompt;
 
 typedef struct {
+	int timeSnapshot;
 	int timeInSeconds;
 	int timeInMinutes;
 	int day;
@@ -109,6 +112,8 @@ typedef struct {
 	NPC* npcList;
 	NPC currentActiveNPC;
 	ActivePrompt activePrompt;
+	int lostCHA;
+	int lostPHP;
 	int numberOfNPC;
 	int isInteractionActive;
 } SceneManager;
@@ -133,19 +138,24 @@ struct Option{
 
 void AddOption(SceneManager* scene, char* dialouge, int id, int pointedDialougeID, void (*f)(GameManager, SceneManager, Player, int));
 void updateCurrentActivePrompt(SceneManager *scene, char* dialouge, int choice, int dialougeStage);
+void changeMapState(GameManager* game, int areaID, int isHide);
+
+void clearConsole() {
+	printf("\033[2J\033[1;1H");
+}
 
 void updateCurrentActiveNPC(SceneManager *scene, NPC activeNPC) {
 	scene->currentActiveNPC = activeNPC;
 }
 
 void clearPromptAndOptions(GameManager *game, SceneManager *scene, Player* player) {
-	updateCurrentActivePrompt(scene, " ", -1, 0);
+	updateCurrentActivePrompt(scene, " ", -1, 0, NULL);
 	scene->activePrompt.option = (Option*)realloc(scene->activePrompt.option, 0);
 	scene->activePrompt.numberOfOptions = 0;
 }
 
 void exitInteractionWithNPC(GameManager* game, SceneManager *scene, Player* player, int dialougeID) {
-	updateCurrentActivePrompt(scene, " ", -1, 0);
+	updateCurrentActivePrompt(scene, " ", -1, 0, NULL);
 	scene->activePrompt.option = (Option*)realloc(scene->activePrompt.option, 0);
 	scene->activePrompt.numberOfOptions = 0;
 	scene->isInteractionActive = 0;
@@ -153,7 +163,7 @@ void exitInteractionWithNPC(GameManager* game, SceneManager *scene, Player* play
 
 void goToDialougeAndOptions(GameManager *game, SceneManager *scene, Player *player, int dialougeID) {
 	clearPromptAndOptions(game, scene, player);
-	updateCurrentActivePrompt(scene, scene->currentActiveNPC.dialouge.dialouges[dialougeID], 0, 10);
+	updateCurrentActivePrompt(scene, scene->currentActiveNPC.dialouge.dialouges[dialougeID], 0, 10, NULL);
 	AddOption(scene, "Leave", 0, -1, exitInteractionWithNPC);
 }
 
@@ -162,7 +172,7 @@ void goToDialougeAndOptionsIfRequirementMet(GameManager* game, SceneManager* sce
 	switch (scene->currentActiveNPC.requirements[dialougeID-2].type) {
 	case 3: // CHA Requirement
 		if (player->stats.Charisma >= scene->currentActiveNPC.requirements[dialougeID-2].statRequired) {
-			updateCurrentActivePrompt(scene, scene->currentActiveNPC.dialouge.dialouges[dialougeID], 0, 30);
+			updateCurrentActivePrompt(scene, scene->currentActiveNPC.dialouge.dialouges[dialougeID], 0, 30, NULL);
 			AddOption(scene, "Leave", 0, -1, exitInteractionWithNPC);
 		}
 		else { 
@@ -309,7 +319,6 @@ void updateCurrentActivePrompt(SceneManager *scene, char *dialouge, int choice, 
 		printf(ANSI_COLOR_RED "\n[Memory Allocation Field]\n" ANSI_COLOR_RESET);
 		return;
 	}
-	
 	scene->activePrompt.dialouge = temp;
 	scene->activePrompt.dialougeStage = dialougeStage;
 	strcpy(scene->activePrompt.dialouge, dialouge);
@@ -467,10 +476,26 @@ void renderUI(GameManager *game, SceneManager *scene, Player* player) {
 		userInterfacePointerX = 0;
 	}
 
-	printf("%s\n", scene->activePrompt.dialouge);
+	if (scene->lostCHA != 0) {
+		printf(ANSI_COLOR_RED "You are slowly losing sanity, thus also losing your confidence " ANSI_COLOR_RESET);
+		printf(ANSI_COLOR_RED "(-%d CHA)\n" ANSI_COLOR_RESET, scene->lostCHA);
+		if (time(NULL) - game->gameTime.timeSnapshot >= 10) {
+			scene->lostCHA = 0;
+		}
+	}
+	if (scene->lostPHP != 0) {
+		printf(ANSI_COLOR_RED "You are becoming insane by the second. You lost some things " ANSI_COLOR_RESET);
+		printf(ANSI_COLOR_RED "(-%d PHP)\n" ANSI_COLOR_RESET, scene->lostPHP);
+		if (time(NULL) - game->gameTime.timeSnapshot >= 10) {
+			scene->lostPHP = 0;
+		}
+	}
+	printf("%s", scene->activePrompt.dialouge);
+	printf("\n");
 	if (scene->activePrompt.dialougeStage == 10) {
 		printf("(You require %d %s to complete action)\n", scene->currentActiveNPC.requirements[0].statRequired,requirementTypeToString(scene->currentActiveNPC.requirements[0].type));
 	}
+
 	if (scene->activePrompt.option != NULL) {
 		for (int i = 0; i < scene->activePrompt.numberOfOptions; i++) {
 			printf("%c %s\n", onOption(scene->activePrompt.currentOption, scene->activePrompt.option[i].id), 
@@ -519,10 +544,22 @@ void changeStatIfRequirementMet(GameManager* game, SceneManager* scene, Player* 
 	clearPromptAndOptions(game, scene, player);
 }
 
+void talkToStudentAndExit(GameManager* game, SceneManager* scene, Player* player, int dialougeID) {
+	srand(time(NULL));
+	int statRandomizer = 10 + (rand() % 10);
+	player->stats.Charisma += statRandomizer;
+	game->gameTime.timeInSeconds += 60;
+	exitInteractionWithNPC(game, scene, player, 0);
+}
+
+void begToStudentAndExit(GameManager* game, SceneManager* scene, Player* player, int dialougeID) {
+
+}
+
 void interactWithStudent(SceneManager *scene) {
 	updateCurrentActivePrompt(scene, scene->currentActiveNPC.dialouge.dialouges[0], 0, 0);
-	AddOption(scene, "Talk (+10 CHA) (+1 HR)", 0, -1, exitInteractionWithNPC);
-	AddOption(scene, "Beg (+10 PHP) (-10 MH)", 1, -1, exitInteractionWithNPC);
+	AddOption(scene, "Talk", 0, -1, talkToStudentAndExit);
+	AddOption(scene, "Beg", 1, -1, exitInteractionWithNPC);
 	AddOption(scene, "Leave", 2, -1, exitInteractionWithNPC);
 	scene->isInteractionActive = 1;
 }
@@ -531,33 +568,53 @@ int canPlayerMoveThere(Player* player, SceneManager *scene, GameManager* game, i
 	// Checks if a player can move to a position forward. Gets the data of the object the player wants to move to and then decide
 	// an action depending on the attached data on that object
 	int indexOfObjectAhead = calculateIndexFromCoordinate(player->position.x + x, player->position.y + y, TOTAL_WIDTH_MAP, MAP_DATASIZE, 0);
-	if (game->mapData[indexOfObjectAhead + 2] - '0' == 0) { // Refer to documentation. A [0] attached data in the third index refers to an area that can't be moved to
+	if (game->mapData[indexOfObjectAhead] - '0' != 0) {
 		switch (whatNPClocatedAt(game, player->position.x, player->position.y, x, y)) {
 			// Refer to documentation. A [7] attached data in the first index refers to a Guard NPC occupying that area
 			// A player attempting to move to that area will trigger an interaction with the NPC.
 			// The NPC in the coordinate the player attempted to move to will become the current active NPC that can be accessed in the scene manager
-			case 9:
-				updateCurrentActiveNPC(scene, findNPCwithCoordinate(scene, player->position.x + x, player->position.y + y));
-				interactWithStudent(scene);
-				break;
-			case 7:
-				updateCurrentActiveNPC(scene, findNPCwithCoordinate(scene, player->position.x + x, player->position.y + y)); 
-				interactWithNPC(scene);
-				break;
-			case 5:
-				updateCurrentActiveNPC(scene, findNPCwithCoordinate(scene, player->position.x + x, player->position.y + y));
-				interactWithPrincipal(scene);
-				break;
+		case 9:
+			updateCurrentActiveNPC(scene, findNPCwithCoordinate(scene, player->position.x + x, player->position.y + y));
+			interactWithStudent(scene);
+			break;
+		case 7:
+			updateCurrentActiveNPC(scene, findNPCwithCoordinate(scene, player->position.x + x, player->position.y + y));
+			interactWithNPC(scene);
+			break;
+		case 5:
+			updateCurrentActiveNPC(scene, findNPCwithCoordinate(scene, player->position.x + x, player->position.y + y));
+			interactWithPrincipal(scene);
+			break;
 		}
-			return 0;
+		return 0;
 	}
 	else if (game->mapData[indexOfObjectAhead + 2] - '0' == 2) {
-		return 0;
+		// The following if elses check if the area the player is going to move to is one of the hidden areas
+		// If it is, then change that area's data to not hidden so it will render with the area not hidden
+		if (player->position.x + x >= 11 && player->position.x + x <= 44) {
+			if (player->position.y + y >= 1 && player->position.y + y <= 6) {
+				changeMapState(game, 2, 1);
+			}
+		}
+		else if (player->position.x + x >= 62 && player->position.x + x <= 86) {
+			if (player->position.y + y >= 39 && player->position.y + y <= 52) {
+				changeMapState(game, 4, 1);
+			}
+		}
+		else if (player->position.x + x >= 138 && player->position.x + x <= 159) {
+			if (player->position.y + y >= 19 && player->position.y + y <= 28) {
+				changeMapState(game, 7, 1);
+			}
+		}
+		return 1;
 	}
 	else {
 		if (game->mapData[indexOfObjectAhead + 3] - '0' != 9) {
 			player->position.areaID = game->mapData[indexOfObjectAhead + 3] - '0';
 		}
+	}
+	if (game->mapData[indexOfObjectAhead + 2] - '0' == 0) { // Refer to documentation. A [0] attached data in the third index refers to an area that can't be moved to
+		return 0;
 	}
 	return 1;
 }
@@ -576,7 +633,7 @@ void addItemInInventory(Player* player, int id, int type, int statModifier, int 
 char* randomDialougeStudent() {
 	int* dialouge = '\0';
 	srand(time(NULL));
-	int r = rand() % 3;
+	int r = 1 + (rand() % 2);
 	switch (r) {
 		case 1:
 			dialouge = (char*)malloc(sizeof(char)*(strlen("Oh, how are you?")));
@@ -633,7 +690,7 @@ int readInput(GameManager* game, SceneManager *scene, Player *player) {
 		char* npcDialouges[1] = { '\0' };
 		npcDialouges[0] = randomDialougeStudent();
 
-		spawnNPC(game, scene, NULL, 0, 10, 23, -1, 9, npcDialouges, 1);
+		spawnNPC(game, scene, NULL, 0, 8, 29, -1, 9, npcDialouges, 1);
 	}
 	if (userInput == 'b') {
 		if (game->debugMode == 0) { game->debugMode = 1; }
@@ -675,8 +732,8 @@ void debugMode(Player* player, GameManager* game, SceneManager *scene) {
 	printf("Camera Relative Coordinate: (%d, %d)\n", relativeTopLeftCoordinate[0], relativeTopLeftCoordinate[1]);
 	printf("Time: %d\n", game->gameTime.timeInSeconds);
 	printf("Number of NPCs: %d\n", scene->numberOfNPC);
-	printf("Principal Location: %s\n", areaIDtoString(scene->npcList[1].coordinate.areaID));
-	printf("Principal Location Data Index 2: %c\n", game->mapData[calculateIndexFromCoordinate(scene->npcList[1].coordinate.x, scene->npcList[1].coordinate.y, TOTAL_WIDTH_MAP, MAP_DATASIZE, 2)]);
+	printf("Principal Location: %s\n", areaIDtoString(scene->npcList[0].coordinate.areaID));
+	printf("Principal Location Data Index 2: %c\n", game->mapData[calculateIndexFromCoordinate(scene->npcList[0].coordinate.x, scene->npcList[0].coordinate.y, TOTAL_WIDTH_MAP, MAP_DATASIZE, 2)]);
 	printf("________________________________________\n");
 }
 
@@ -703,10 +760,10 @@ void changeMapState(GameManager *game, int areaID, int isHide) {
 		break;
 	}
 
-	// Iliterates through the map data equivalent within the set bound and set all their first data index to 1 to indicate it needs to be hidden
+	// Iliterates through the map data equivalent within the set bound and set all their first data index to 2 to indicate it needs to be hidden
 	for (int y = y1; y <= y2; y++) {
 		for (int x = x1; x <= x2; x++) {
-			game->mapData[calculateIndexFromCoordinate(x, y, TOTAL_WIDTH_MAP, MAP_DATASIZE, 2)] = 2 + '0';
+			game->mapData[calculateIndexFromCoordinate(x, y, TOTAL_WIDTH_MAP, MAP_DATASIZE, 2)] = isHide + '0';
 		}
 	}
 }
@@ -734,7 +791,20 @@ void initiateGuardNPCspawn(GameManager *game, SceneManager *scene) {
 	char* npcDialouges[3] = { '\0' };
 	npcDialouges[0] = "What do you want Child?";
 	npcDialouges[1] = "I can't tell you.";
-	npcDialouges[2] = "The principal is at the Garden";
+	switch (scene->npcList[0].coordinate.areaID) {
+	case 2:
+		npcDialouges[2] = "The principal is at the [PRINCIPAL'S OFFICE]";
+		break;
+	case 4:
+		npcDialouges[2] = "The principal is at the [GARDEN]";
+		break;
+	case 7:
+		npcDialouges[2] = "The principal is at the [FACULTY OFFICE]";
+		break;
+	default:
+		npcDialouges[2] = "Principal AreaID not found";
+		break;
+	}
 
 	Requirement req[] = { {0, 3, -1, 30} };
 	spawnNPC(game, scene, req, 1, 16, 31, -1, 7, npcDialouges, 3);
@@ -742,7 +812,7 @@ void initiateGuardNPCspawn(GameManager *game, SceneManager *scene) {
 
 void initiatePrincipalNPCspawn(GameManager* game, SceneManager* scene) {
 	srand(time(NULL));
-	int spawnRandomizer = rand() % 4;
+	int spawnRandomizer = 1 + (rand() % 3);
 	char* npcDialouges[1] = { '\0' };
 	int x = 0, y = 0, areaID = 0;
 	switch (spawnRandomizer) {
@@ -765,9 +835,9 @@ void initiatePrincipalNPCspawn(GameManager* game, SceneManager* scene) {
 	npcDialouges[0] = "What? You want to complain about your grades?";
 
 	spawnNPC(game, scene, NULL, 0, x, y, areaID, 5, npcDialouges, 1);
-	changeMapState(game, 2, 1);
-	changeMapState(game, 4, 1);
-	changeMapState(game, 7, 1);
+	changeMapState(game, 2, 2);
+	changeMapState(game, 4, 2);
+	changeMapState(game, 7, 2);
 }
 
 void initiatePlayerStats(GameManager *game, Player *player, SceneManager *scene) {
@@ -776,6 +846,26 @@ void initiatePlayerStats(GameManager *game, Player *player, SceneManager *scene)
 	int charismaRandomizer = rand() % 10;
 	player->stats.Pesos = 5 + moneyRandomizer;
 	player->stats.Charisma = 10 + charismaRandomizer;
+}
+
+void reducePlayerStatRandomly(GameManager *game, SceneManager *scene, Player *player) {
+	if (game->gameTime.timeInSeconds % 60 == 0) {
+		srand(time(NULL));
+		int statLosingRandomizer = 1 + rand() % 3;
+		int moneyLossRandomizer = 10 + (rand() % 10);
+		int charismaLossRandomizer = 5 + (rand() % 5);
+		switch (statLosingRandomizer) {
+		case 1: // Loss of PHP
+			player->stats.Pesos -= moneyLossRandomizer;
+			scene->lostPHP = moneyLossRandomizer;
+			break;
+		case 2: // Loss of Charisma
+			player->stats.Charisma -= charismaLossRandomizer;
+			scene->lostPHP = moneyLossRandomizer;
+			break;
+		}
+		game->gameTime.timeSnapshot = time(NULL);
+	}
 }
 
 Player initiatePlayerManager() {
@@ -790,7 +880,7 @@ Player initiatePlayerManager() {
 GameManager initiateGameManager() {
 	GameManager game = {
 		{DEFAULT_MOVE_UP, DEFAULT_MOVE_LEFT, DEFAULT_MOVE_DOWN, DEFAULT_MOVE_RIGHT}, // Navigation keybinds
-		{0, 0, 1, time(NULL)}, // Game Time
+		{0, 0, 0, 1, time(NULL)}, // Game Time
 		{0, 0}, // Relative Camera Coordinate
 		(char*)malloc(sizeof(char)), // Map Data Initial Allocation
 		(char*)malloc(sizeof(char)), // UI Data Initial Allocation
@@ -805,6 +895,8 @@ SceneManager initiateSceneManager() {
 		(NPC*)malloc(sizeof(NPC)), // NPC List Initial Allocation
 		NULL, // Current NPC Interacted Initialization
 		NULL, // Current Active Prompt Initialization
+		0, // Current Lost CHA
+		0, // Current lost PHP
 		0, // Number of NPC Active in Map
 		0 // Interaction Between Player to NPC Active {0 = false, 1=true}
 	};
@@ -815,24 +907,25 @@ int main(void) {
 	GameManager game = initiateGameManager();
 	SceneManager scene = initiateSceneManager();
 
+
 	updateCameraRelativeCoordinate(&game, &player);
 	updateCurrentActivePrompt(&scene, "Objective: Meet the Principal", -1, 0);
 	printf("\33[?25l"); // Hide the cursor
 	//printf("\33[?25h"); // Re enable cursor
 	if (initiateDatas(&game) == 0) { printf(ANSI_COLOR_RED "{No Map Data}"); return; };
 
-	initiateGuardNPCspawn(&game, &scene);
 	initiatePrincipalNPCspawn(&game, &scene);
+	initiateGuardNPCspawn(&game, &scene);
 	initiatePlayerStats(&game, &player, &scene);
 	renderUI(&game, &scene, &player);
-
 	
 	while (readInput(&game, &scene, &player) == 1) {
 		if (game.isGameRunning == 1) {
-			system("cls");
+			clearConsole();
 			updateTime(&game);
 			if (game.debugMode == 1) { debugMode(&player, &game, &scene); }
 			renderUI(&game, &scene, &player);
+			reducePlayerStatRandomly(&game, &scene, &player);
 		}
 		else { break; }
 	}
@@ -845,3 +938,6 @@ int main(void) {
 
 // TODO
 // Item may spawn randomly in the map, the item that will spawn should be required by one of the NPCs
+// Guard Random Requirement
+// Student giving stats
+// Guard blocking the way to a potential principal spot which requires random requirement
