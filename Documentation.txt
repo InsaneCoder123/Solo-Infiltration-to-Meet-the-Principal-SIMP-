@@ -1,0 +1,58 @@
+Principal Possible Spawn Points
+Principal Office (27, 2) ; Area (11, 1) to (44, 6)
+Garden (67, 48) ; Area (62, 39) to (86, 52)
+Faculty Office (155, 22) ; Area (138, 19) to (159, 28)
+
+Map Elements
+
+0000
+
+Index 3
+0 - Entrance
+1 - Library
+2 - Principal Office
+3 - Study Area
+4 - Garden
+5 - Glec
+6 - GYM
+7 - Faculty Office
+8 - Hallway
+9 - NONE
+
+Index 2
+0 - Is not moveable
+1 - Is moveable
+2 - Is Hidden And Not Moveable
+
+Index 1
+0 - Wall
+1 - Empty Space Inside the Map
+2 - Empty Space Outside the Map
+3 - _ Decoration
+4 - / Decoration
+5 - \ Decoration
+6 - | Decoration
+7 - - Decoration
+8 - + Decoration
+9 - = Decoration
+
+Index 0
+0
+1 
+2
+3
+4
+5 - Principal NPC
+6 - Canteen Vendor NPC
+7 - Entrance Guard NPC
+8 - Guard NPC
+9 - Student NPC
+
+
+
+Type of NPCs
+Student NPC
+Guard NPC
+Entrance Guard NPC
+Canteen Vendor NPC
+Principal NPC - ID 20
