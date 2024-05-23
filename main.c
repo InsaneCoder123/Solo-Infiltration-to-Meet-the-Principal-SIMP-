@@ -324,6 +324,9 @@ char intToChar(int n) {
 char* requirementTypeToString(int n) {
 	char* s = '\0';
 	switch (n) {
+	case 2:
+		s = "PHP";
+		return s;
 	case 3:
 		s = "CHA";
 		return s;
@@ -643,7 +646,10 @@ void begToStudentAndExit(GameManager* game, SceneManager* scene, Player* player,
 	srand(time(NULL));
 	int statRandomizer = 10 + (rand() % 10);
 	player->stats.Pesos += statRandomizer;
-	player->stats.mentalHealth -= statRandomizer;
+	if (player->stats.mentalHealth - statRandomizer < 0) {
+		player->stats.mentalHealth = 0;
+	}
+	else { player->stats.mentalHealth -= statRandomizer; }
 	game->gameTime.timeSnapshot[2] = time(NULL);
 	scene->gainPHP = statRandomizer;
 	exitInteractionWithNPC(game, scene, player, 0);
@@ -666,7 +672,7 @@ void spawnStudentNPC(GameManager *game, SceneManager *scene) {
 	if (game->gameTime.timeSnapshot[4] == 0) {
 		game->gameTime.timeSnapshot[4] = time(NULL);
 	}
-	if (time(NULL) - game->gameTime.timeSnapshot[4] >= 10) {
+	if (time(NULL) - game->gameTime.timeSnapshot[4] >= 3) {
 		switch (areaRandomizer) {
 		case 0: // Study Area
 			areaID = 3;
@@ -692,7 +698,7 @@ void spawnStudentNPC(GameManager *game, SceneManager *scene) {
 		char* npcDialouges[1] = { '\0' };
 		npcDialouges[0] = randomDialougeStudent();
 		game->gameTime.timeSnapshot[4] = 0;
-		spawnNPC(game, scene, NULL, -1, xRandomizer, yRandomizer, areaID, 9, npcDialouges, 1);
+		spawnNPC(game, scene, NULL, 0, xRandomizer, yRandomizer, areaID, 9, npcDialouges, 1);
 	}
 }
 
@@ -830,18 +836,18 @@ int readInput(GameManager* game, SceneManager *scene, Player *player) {
 			}
 		}
 	}
-	if (userInput == 'k') { // Student
-		// To be implemenmted template for NPC spawning
-		char* npcDialouges[1] = { '\0' };
-		npcDialouges[0] = randomDialougeStudent();
-
-		spawnNPC(game, scene, NULL, 0, 8, 29, -1, 9, npcDialouges, 1);
-	}
 	if (userInput == 'b') {
 		if (game->debugMode == 0) { game->debugMode = 1; }
 		else game->debugMode = 0;
 	}
 	if (game->debugMode == 1) {
+		if (userInput == 'k') { // Student
+			// To be implemenmted template for NPC spawning
+			char* npcDialouges[1] = { '\0' };
+			npcDialouges[0] = randomDialougeStudent();
+
+			spawnNPC(game, scene, NULL, 0, 8, 29, -1, 9, npcDialouges, 1);
+		}
 		if (userInput == '4') {
 			changeposition(player, -1, 0);
 		}
@@ -951,7 +957,10 @@ void initiateGuardNPCspawn(GameManager *game, SceneManager *scene) {
 		break;
 	}
 
-	Requirement req[] = { {0, 1, 1, -1} };
+	srand(time(NULL));
+	int requirementTypeRandomizer = 1 + (rand() % 3);
+	int statRequiredRandomizer = 25 + rand() % (50 - 25+1);
+	Requirement req[] = { {0, requirementTypeRandomizer, 1, statRequiredRandomizer} };
 	spawnNPC(game, scene, req, 1, 16, 31, -1, 7, npcDialouges, 3);
 }
 
@@ -1004,13 +1013,12 @@ void deleteCurrentActiveNPC(GameManager *game, SceneManager *scene) {
 		temp[i] = scene->npcList[i];
 	}
 	scene->numberOfNPC -= 1;
-	scene->npcList = (NPC*)realloc(scene->npcList, sizeof(NPC) * scene->numberOfNPC);;
-	for (int i = 0; i < scene->numberOfNPC; i++) {
+	scene->npcList = (NPC*)realloc(scene->npcList, sizeof(NPC) * scene->numberOfNPC);
+	for (int i = 0, j = 0; i < scene->numberOfNPC; i++) {
 		if (temp[i].id == -1) {
-			i--;
-			continue;
+			j = 1;
 		}
-		scene->npcList[i] = temp[i];
+		scene->npcList[i] = temp[i+j];
 	}
 
 	game->mapData[calculateIndexFromCoordinate(scene->currentActiveNPC.coordinate.x, scene->currentActiveNPC.coordinate.y, TOTAL_WIDTH_MAP, MAP_DATASIZE, 0)] = 0 + '0';
@@ -1050,6 +1058,10 @@ void reducePlayerStatRandomly(GameManager *game, SceneManager *scene, Player *pl
 			game->gameTime.timeSnapshot[1] = 0;
 		}
 	}
+}
+
+void spawnGuardKey(SceneManager *scene) {
+	rands(time(NULL));
 }
 
 Player initiatePlayerManager() {
