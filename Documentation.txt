@@ -20,8 +20,13 @@ Principal Office - (25, 8) to (30, 8)
 Garden - (71, 37) to (76, 37)
 Faculty office - (142, 30) to (147, 30)
 
-
-
+Item Spawning Spots
+(1, 29)
+(163, 39)
+(117, 44)
+(70, 15)
+(25, 50)
+(36, 13)
 
 Map Elements
 
@@ -134,6 +139,10 @@ Excel's Glue - ID 3
 Wilfred's Stapler - ID 4
 Trixie's Ballpen - ID 5
 VJ's T-SQUARE - ID 6
+SHAUN'S NOTE (+10 CHA) - ID 7
+KEM'S CREDIT CARD (+20 PHP) - ID 8
+MAICA'S EARPHONE (+8 CHA) - ID 9
+DEEP ROCK (+15 CHA) - ID 10
 
 
 Item Types

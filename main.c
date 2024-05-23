@@ -291,6 +291,22 @@ char* itemIDtoString(int n) {
 		itemName = (char*)malloc(sizeof(char) * strlen(ANSI_COLOR_BLUE "VJ'S T-SQUARE" ANSI_COLOR_RESET));
 		itemName = ANSI_COLOR_BLUE "VJ'S T-SQUARE" ANSI_COLOR_RESET;
 		return itemName;
+	case 7:
+		itemName = (char*)malloc(sizeof(char) * strlen(ANSI_COLOR_BLUE "SHAUN'S NOTE (+10 CHA)" ANSI_COLOR_RESET));
+		itemName = ANSI_COLOR_BLUE "SHAUN'S NOTE" ANSI_COLOR_RESET;
+		return itemName;
+	case 8:
+		itemName = (char*)malloc(sizeof(char) * strlen(ANSI_COLOR_BLUE "KEM'S CREDIT CARD (+20 PHP)" ANSI_COLOR_RESET));
+		itemName = ANSI_COLOR_BLUE "KEM'S CREDIT CARD" ANSI_COLOR_RESET;
+		return itemName;
+	case 9:
+		itemName = (char*)malloc(sizeof(char) * strlen(ANSI_COLOR_BLUE "MAICA'S EARPHONE (+8 CHA)" ANSI_COLOR_RESET));
+		itemName = ANSI_COLOR_BLUE "MAICA'S EARPHONE" ANSI_COLOR_RESET;
+		return itemName;
+	case 10:
+		itemName = (char*)malloc(sizeof(char) * strlen(ANSI_COLOR_BLUE "DEEP ROCK (+15 CHA)" ANSI_COLOR_RESET));
+		itemName = ANSI_COLOR_BLUE "DEEP ROCK" ANSI_COLOR_RESET;
+		return itemName;
 	}
 	return NULL;
 }
@@ -772,6 +788,33 @@ void moveDroppedItemToInventory(GameManager *game, SceneManager *scene, Player *
 	case 1:
 		addItemInInventory(player, 1, 0, -1, 1);
 		break;
+	case 2:
+		addItemInInventory(player, 2, 0, -1, 1);
+		break;
+	case 3:
+		addItemInInventory(player, 3, 0, -1, 1);
+		break;
+	case 4:
+		addItemInInventory(player, 4, 0, -1, 1);
+		break;
+	case 5:
+		addItemInInventory(player, 5, 0, -1, 1);
+		break;
+	case 6:
+		addItemInInventory(player, 6, 0, -1, 1);
+		break;
+	case 7:
+		addItemInInventory(player, 7, 1, 10, 1);
+		break;
+	case 8:
+		addItemInInventory(player, 8, 2, 20, 1);
+		break;
+	case 9:
+		addItemInInventory(player, 9, 1, 8, 1);
+		break;
+	case 10:
+		addItemInInventory(player, 10, 1, 15, 1);
+		break;
 	}
 
 }
@@ -784,10 +827,12 @@ int promptHallwayRequirement(GameManager *game, Player *player, SceneManager *sc
 				return 1;
 			}
 			else {
+				game->itemIDRequired = game->hallwayRequirements[location].itemID;
 				updateCurrentActivePrompt(scene, ANSI_COLOR_RED "You need something to go through!" ANSI_COLOR_RESET, 0, 12);
 				return 0;
 			}
 		}
+		game->itemIDRequired = game->hallwayRequirements[location].itemID;
 		updateCurrentActivePrompt(scene, ANSI_COLOR_RED "You need something to go through!" ANSI_COLOR_RESET, 0, 12);
 		return 0;
 	case 2: // PHP
@@ -890,6 +935,12 @@ void addItemInInventory(Player* player, int id, int type, int statModifier, int 
 	player->inventory[player->itemsNumber].type = type;
 	player->inventory[player->itemsNumber].statModifier = statModifier;
 	player->inventory[player->itemsNumber].quantity = quantity;
+	if (player->inventory[player->itemsNumber].type == 1) {
+		player->stats.Charisma += statModifier;
+	}
+	else if (player->inventory[player->itemsNumber].type == 2) {
+		player->stats.Pesos += statModifier;
+	}
 	++(player->itemsNumber);
 }
 
@@ -1189,6 +1240,7 @@ void reducePlayerStatRandomly(GameManager *game, SceneManager *scene, Player *pl
 }
 
 void spawnItem(GameManager *game, SceneManager *scene, DroppedItem item) {
+	if (game->mapData[calculateIndexFromCoordinate(item.coordinate.x, item.coordinate.y, TOTAL_WIDTH_MAP, MAP_DATASIZE, 0)] == 9 + '0') { return; }
 	game->mapData[calculateIndexFromCoordinate(item.coordinate.x, item.coordinate.y, TOTAL_WIDTH_MAP, MAP_DATASIZE, 0)] = 1 + '0';
 	++game->itemNumberInMap;
 	for (int i = 0; i < game->itemNumberInMap; i++) {
@@ -1260,6 +1312,58 @@ void initiateHallwayRequirements(GameManager *game) {
 				game->hallwayRequirements[i].statRequired = statRequirementRandomizer;
 				break;
 		}
+	}
+}
+
+void itemRandomSpawning(GameManager *game, Player *player, SceneManager *scene) {
+	srand(time(NULL));
+	int areaRandomizer = rand() % 6;
+	int itemRandomizer = 2 + rand() % 9; // 2 to 9
+	DroppedItem Item;
+	if (game->gameTime.timeSnapshot[7] == 0) {
+		game->gameTime.timeSnapshot[7] = time(NULL);
+	}
+	if (time(NULL) - game->gameTime.timeSnapshot[7] >= 20) {
+		switch (areaRandomizer) {
+		case 0: 
+			Item.id = itemRandomizer;
+			Item.coordinate.x = 1;
+			Item.coordinate.y = 29;
+			spawnItem(game, scene, Item);
+			break;
+		case 1:
+			Item.id = itemRandomizer;
+			Item.coordinate.x = 163;
+			Item.coordinate.y = 39;
+			spawnItem(game, scene, Item);
+			break;
+		case 2: 
+			Item.id = itemRandomizer;
+			Item.coordinate.x = 117;
+			Item.coordinate.y = 44;
+			spawnItem(game, scene, Item);
+			break;
+		case 3: 
+			Item.id = itemRandomizer;
+			Item.coordinate.x = 70;
+			Item.coordinate.y = 15;
+			spawnItem(game, scene, Item);
+			break;
+		case 4:
+			Item.id = itemRandomizer;
+			Item.coordinate.x = 25;
+			Item.coordinate.y = 50;
+			spawnItem(game, scene, Item);
+			break;
+		case 5:
+			Item.id = itemRandomizer;
+			Item.coordinate.x = 36;
+			Item.coordinate.y = 13;
+			spawnItem(game, scene, Item);
+			break;
+		}
+		game->gameTime.timeSnapshot[7] = 0;
+		
 	}
 }
 
@@ -1341,6 +1445,7 @@ int main(void) {
 			renderUI(&game, &scene, &player);
 			reducePlayerStatRandomly(&game, &scene, &player);
 			spawnStudentNPC(&game, &scene);
+			itemRandomSpawning(&game, &player, &scene);
 		}
 		else { break; }
 	}
