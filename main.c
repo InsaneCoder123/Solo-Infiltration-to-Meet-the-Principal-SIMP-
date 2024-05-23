@@ -101,7 +101,7 @@ typedef struct {
 } ActivePrompt;
 
 typedef struct {
-	int timeSnapshot;
+	int timeSnapshot[5];
 	int timeInSeconds;
 	int timeInMinutes;
 	int day;
@@ -114,6 +114,8 @@ typedef struct {
 	ActivePrompt activePrompt;
 	int lostCHA;
 	int lostPHP;
+	int gainCHA;
+	int gainPHP;
 	int numberOfNPC;
 	int isInteractionActive;
 } SceneManager;
@@ -139,6 +141,7 @@ struct Option{
 void AddOption(SceneManager* scene, char* dialouge, int id, int pointedDialougeID, void (*f)(GameManager, SceneManager, Player, int));
 void updateCurrentActivePrompt(SceneManager *scene, char* dialouge, int choice, int dialougeStage);
 void changeMapState(GameManager* game, int areaID, int isHide);
+void deleteCurrentActiveNPC(GameManager* game, SceneManager* scene);
 
 void clearConsole() {
 	printf("\033[2J\033[1;1H");
@@ -479,15 +482,31 @@ void renderUI(GameManager *game, SceneManager *scene, Player* player) {
 	if (scene->lostCHA != 0) {
 		printf(ANSI_COLOR_RED "You are slowly losing sanity, thus also losing your confidence " ANSI_COLOR_RESET);
 		printf(ANSI_COLOR_RED "(-%d CHA)\n" ANSI_COLOR_RESET, scene->lostCHA);
-		if (time(NULL) - game->gameTime.timeSnapshot >= 10) {
+		if (time(NULL) - game->gameTime.timeSnapshot[0] >= 5) {
 			scene->lostCHA = 0;
 		}
 	}
 	if (scene->lostPHP != 0) {
 		printf(ANSI_COLOR_RED "You are becoming insane by the second. You lost some things " ANSI_COLOR_RESET);
 		printf(ANSI_COLOR_RED "(-%d PHP)\n" ANSI_COLOR_RESET, scene->lostPHP);
-		if (time(NULL) - game->gameTime.timeSnapshot >= 10) {
+		if (time(NULL) - game->gameTime.timeSnapshot[0] >= 5) {
 			scene->lostPHP = 0;
+		}
+	}
+	if (scene->gainCHA != 0) {
+		printf(ANSI_COLOR_GREEN "You gained confidence by talking with a student, but time passed " ANSI_COLOR_RESET);
+		printf(ANSI_COLOR_GREEN "(-%d CHA)" ANSI_COLOR_RESET, scene->gainCHA);
+		printf(ANSI_COLOR_RED " (+1 HR)\n" ANSI_COLOR_RESET);
+		if (time(NULL) - game->gameTime.timeSnapshot[2] >= 5) {
+			scene->gainCHA = 0;
+		}
+	}
+	if (scene->gainPHP != 0) {
+		printf(ANSI_COLOR_GREEN "You actually begged for money, you lost some pride and self-esteem " ANSI_COLOR_RESET);
+		printf(ANSI_COLOR_GREEN "(+%d PHP)" ANSI_COLOR_RESET, scene->gainPHP);
+		printf(ANSI_COLOR_RED " (-10 MH)\n" ANSI_COLOR_RESET);
+		if (time(NULL) - game->gameTime.timeSnapshot[2] >= 5) {
+			scene->gainPHP = 0;
 		}
 	}
 	printf("%s", scene->activePrompt.dialouge);
@@ -548,18 +567,27 @@ void talkToStudentAndExit(GameManager* game, SceneManager* scene, Player* player
 	srand(time(NULL));
 	int statRandomizer = 10 + (rand() % 10);
 	player->stats.Charisma += statRandomizer;
-	game->gameTime.timeInSeconds += 60;
+	game->gameTime.timeWhenDayStarted -= 20;
+	game->gameTime.timeSnapshot[2] = time(NULL);
+	scene->gainCHA = statRandomizer;
 	exitInteractionWithNPC(game, scene, player, 0);
 }
 
 void begToStudentAndExit(GameManager* game, SceneManager* scene, Player* player, int dialougeID) {
-
+	srand(time(NULL));
+	int statRandomizer = 10 + (rand() % 10);
+	player->stats.Pesos += statRandomizer;
+	player->stats.mentalHealth -= statRandomizer;
+	game->gameTime.timeSnapshot[2] = time(NULL);
+	scene->gainPHP = statRandomizer;
+	exitInteractionWithNPC(game, scene, player, 0);
+	deleteCurrentActiveNPC(game, scene);
 }
 
 void interactWithStudent(SceneManager *scene) {
 	updateCurrentActivePrompt(scene, scene->currentActiveNPC.dialouge.dialouges[0], 0, 0);
 	AddOption(scene, "Talk", 0, -1, talkToStudentAndExit);
-	AddOption(scene, "Beg", 1, -1, exitInteractionWithNPC);
+	AddOption(scene, "Beg", 1, -1, begToStudentAndExit);
 	AddOption(scene, "Leave", 2, -1, exitInteractionWithNPC);
 	scene->isInteractionActive = 1;
 }
@@ -682,7 +710,9 @@ int readInput(GameManager* game, SceneManager *scene, Player *player) {
 		}
 		else if (userInput == ' ') {
 			Option currentOption = scene->activePrompt.option[scene->activePrompt.currentOption];
-			currentOption.eventAction(game, scene, player, currentOption.pointedDialougeID);
+			if (currentOption.pointedDialougeID != -5) {
+				currentOption.eventAction(game, scene, player, currentOption.pointedDialougeID);
+			}
 		}
 	}
 	if (userInput == 'k') { // Student
@@ -848,23 +878,62 @@ void initiatePlayerStats(GameManager *game, Player *player, SceneManager *scene)
 	player->stats.Charisma = 10 + charismaRandomizer;
 }
 
+void deleteCurrentActiveNPC(GameManager *game, SceneManager *scene) {
+	NPC* temp = (NPC*)malloc(sizeof(NPC)*scene->numberOfNPC);
+	for (int i = 0; i < scene->numberOfNPC; i++) {
+		if (isTwoCoordinatesTheSame(scene->currentActiveNPC.coordinate.x, scene->currentActiveNPC.coordinate.y, scene->npcList[i].coordinate.x, 
+			scene->npcList[i].coordinate.y) == 1) {
+			temp[i].id = -1;
+			continue;
+		}
+		temp[i] = scene->npcList[i];
+	}
+	scene->numberOfNPC -= 1;
+	scene->npcList = (NPC*)realloc(scene->npcList, sizeof(NPC) * scene->numberOfNPC);;
+	for (int i = 0; i < scene->numberOfNPC; i++) {
+		if (temp[i].id == -1) {
+			i--;
+			continue;
+		}
+		scene->npcList[i] = temp[i];
+	}
+
+	game->mapData[calculateIndexFromCoordinate(scene->currentActiveNPC.coordinate.x, scene->currentActiveNPC.coordinate.y, TOTAL_WIDTH_MAP, MAP_DATASIZE, 0)] = 0 + '0';
+	game->mapData[calculateIndexFromCoordinate(scene->currentActiveNPC.coordinate.x, scene->currentActiveNPC.coordinate.y, TOTAL_WIDTH_MAP, MAP_DATASIZE, 2)] = 1 + '0';
+}
+
 void reducePlayerStatRandomly(GameManager *game, SceneManager *scene, Player *player) {
-	if (game->gameTime.timeInSeconds % 60 == 0) {
+	if (game->gameTime.timeSnapshot[1] == 0) {
+		game->gameTime.timeSnapshot[1] = time(NULL);
+	}
+	if (time(NULL) - game->gameTime.timeSnapshot[1] >= 10) {
 		srand(time(NULL));
-		int statLosingRandomizer = 1 + rand() % 3;
+		int willPlayerLostStatRandomizer = 1 + (rand() % 100);
+		int statLosingRandomizer = 1 + (rand() % 2);
 		int moneyLossRandomizer = 10 + (rand() % 10);
 		int charismaLossRandomizer = 5 + (rand() % 5);
-		switch (statLosingRandomizer) {
-		case 1: // Loss of PHP
-			player->stats.Pesos -= moneyLossRandomizer;
-			scene->lostPHP = moneyLossRandomizer;
-			break;
-		case 2: // Loss of Charisma
-			player->stats.Charisma -= charismaLossRandomizer;
-			scene->lostPHP = moneyLossRandomizer;
-			break;
+		if (willPlayerLostStatRandomizer >= 1 && willPlayerLostStatRandomizer <= 100 - player->stats.mentalHealth) {
+			switch (statLosingRandomizer) {
+			case 1: // Loss of PHP
+				scene->lostPHP = moneyLossRandomizer;
+				if (player->stats.Pesos - moneyLossRandomizer < 0) { 
+					player->stats.Pesos = 0;
+					break; 
+				}
+				player->stats.Pesos -= moneyLossRandomizer;
+				break;
+			case 2: // Loss of Charisma
+				scene->lostCHA = charismaLossRandomizer;
+				if (player->stats.Charisma - charismaLossRandomizer < 0) {
+					player->stats.Charisma = 0;
+					break;
+				}
+				player->stats.Charisma -= charismaLossRandomizer;
+				break;
+			}
+			game->gameTime.timeSnapshot[0] = time(NULL);
+			game->gameTime.timeSnapshot[1] = 0;
 		}
-		game->gameTime.timeSnapshot = time(NULL);
 	}
 }
 
@@ -880,7 +949,7 @@ Player initiatePlayerManager() {
 GameManager initiateGameManager() {
 	GameManager game = {
 		{DEFAULT_MOVE_UP, DEFAULT_MOVE_LEFT, DEFAULT_MOVE_DOWN, DEFAULT_MOVE_RIGHT}, // Navigation keybinds
-		{0, 0, 0, 1, time(NULL)}, // Game Time
+		{{0}, 0, 0, 1, time(NULL)}, // Game Time
 		{0, 0}, // Relative Camera Coordinate
 		(char*)malloc(sizeof(char)), // Map Data Initial Allocation
 		(char*)malloc(sizeof(char)), // UI Data Initial Allocation
@@ -897,6 +966,8 @@ SceneManager initiateSceneManager() {
 		NULL, // Current Active Prompt Initialization
 		0, // Current Lost CHA
 		0, // Current lost PHP
+		0, // Current gain CHA
+		0, // Current gain PHP
 		0, // Number of NPC Active in Map
 		0 // Interaction Between Player to NPC Active {0 = false, 1=true}
 	};
