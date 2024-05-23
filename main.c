@@ -106,7 +106,7 @@ typedef struct {
 } ActivePrompt;
 
 typedef struct {
-	int timeSnapshot[5];
+	int timeSnapshot[10];
 	int timeInSeconds;
 	int timeInMinutes;
 	int day;
@@ -129,6 +129,10 @@ typedef struct {
 	Keybinds keybinds;
 	GameTime gameTime;
 	DroppedItem itemList[13];
+	Requirement hallwayRequirements[3];
+	int itemIDRequired;
+	int requiredPHP;
+	int requiredCHA;
 	int itemNumberInMap;
 	int relativeCameraCoordinate[2];
 	char* mapData;
@@ -266,6 +270,26 @@ char* itemIDtoString(int n) {
 	case 1:
 		itemName = (char*)malloc(sizeof(char) * strlen(ANSI_COLOR_BLUE "GUARD KEY" ANSI_COLOR_RESET));
 		itemName = ANSI_COLOR_BLUE "GUARD KEY" ANSI_COLOR_RESET;
+		return itemName;
+	case 2:
+		itemName = (char*)malloc(sizeof(char) * strlen(ANSI_COLOR_BLUE "BSCPE ID SLING" ANSI_COLOR_RESET));
+		itemName = ANSI_COLOR_BLUE "BSCPE ID SLING" ANSI_COLOR_RESET;
+		return itemName;
+	case 3:
+		itemName = (char*)malloc(sizeof(char) * strlen(ANSI_COLOR_BLUE "EXCEL'S GLUE" ANSI_COLOR_RESET));
+		itemName = ANSI_COLOR_BLUE "EXCEL'S GLUE" ANSI_COLOR_RESET;
+		return itemName;
+	case 4:
+		itemName = (char*)malloc(sizeof(char) * strlen(ANSI_COLOR_BLUE "WILFRED'S STAPLER" ANSI_COLOR_RESET));
+		itemName = ANSI_COLOR_BLUE "WILFRED'S STAPLER" ANSI_COLOR_RESET;
+		return itemName;
+	case 5:
+		itemName = (char*)malloc(sizeof(char) * strlen(ANSI_COLOR_BLUE "TRIXIE'S BALLPEN" ANSI_COLOR_RESET));
+		itemName = ANSI_COLOR_BLUE "TRIXIE'S BALLPEN" ANSI_COLOR_RESET;
+		return itemName;
+	case 6:
+		itemName = (char*)malloc(sizeof(char) * strlen(ANSI_COLOR_BLUE "VJ'S T-SQUARE" ANSI_COLOR_RESET));
+		itemName = ANSI_COLOR_BLUE "VJ'S T-SQUARE" ANSI_COLOR_RESET;
 		return itemName;
 	}
 	return NULL;
@@ -596,6 +620,18 @@ void renderUI(GameManager *game, SceneManager *scene, Player* player) {
 	if (scene->activePrompt.dialougeStage == 11) { 
 		printf("(You require %s to complete action)\n", itemIDtoString(scene->currentActiveNPC.requirements[0].type));
 	}
+	if (scene->activePrompt.dialougeStage == 12) {
+		printf("(You require %s to pass through!)\n", itemIDtoString(game->itemIDRequired));
+		clearPromptAndOptions(game, scene, player);
+	}
+	if (scene->activePrompt.dialougeStage == 13) {
+		printf("(You require %d PHP to pass through!)\n", game->requiredPHP);
+		clearPromptAndOptions(game, scene, player);
+	}
+	if (scene->activePrompt.dialougeStage == 14) {
+		printf("(You require %d CHA to pass through!)\n", game->requiredCHA);
+		clearPromptAndOptions(game, scene, player);
+	}
 
 	if (scene->activePrompt.option != NULL) {
 		for (int i = 0; i < scene->activePrompt.numberOfOptions; i++) {
@@ -740,6 +776,42 @@ void moveDroppedItemToInventory(GameManager *game, SceneManager *scene, Player *
 
 }
 
+int promptHallwayRequirement(GameManager *game, Player *player, SceneManager *scene, int location) {
+	switch (game->hallwayRequirements[location].type) {
+	case 1: // Item
+		for (int j = 0; j < player->itemsNumber; j++) {
+			if (player->inventory[location].id == game->hallwayRequirements[location].itemID) {
+				return 1;
+			}
+			else {
+				updateCurrentActivePrompt(scene, ANSI_COLOR_RED "You need something to go through!" ANSI_COLOR_RESET, 0, 12);
+				return 0;
+			}
+		}
+		updateCurrentActivePrompt(scene, ANSI_COLOR_RED "You need something to go through!" ANSI_COLOR_RESET, 0, 12);
+		return 0;
+	case 2: // PHP
+		if (player->stats.Pesos < game->hallwayRequirements[location].statRequired) {
+			game->requiredPHP = game->hallwayRequirements[location].statRequired;
+			updateCurrentActivePrompt(scene, ANSI_COLOR_RED "You lack money!" ANSI_COLOR_RESET, 0, 13);
+			return 0;
+		}
+		else {
+			return 1;
+		}
+	case 3: // CHA
+		if (player->stats.Charisma < game->hallwayRequirements[location].statRequired) {
+			game->requiredCHA = game->hallwayRequirements[location].statRequired;
+			updateCurrentActivePrompt(scene, ANSI_COLOR_RED "You lack confidence!" ANSI_COLOR_RESET, 0, 14);
+			return 0;
+		}
+		else {
+			return 1;
+		}
+	}
+	return 0;
+}
+
 int canPlayerMoveThere(Player* player, SceneManager *scene, GameManager* game, int x, int y) {
 	// Checks if a player can move to a position forward. Gets the data of the object the player wants to move to and then decide
 	// an action depending on the attached data on that object
@@ -752,6 +824,20 @@ int canPlayerMoveThere(Player* player, SceneManager *scene, GameManager* game, i
 		case 1:
 			moveDroppedItemToInventory(game, scene, player, indexOfObjectAhead, player->position.x + x, player->position.y + y);
 			return 1;
+		case 2:
+			if (player->position.x + x >= 25 && player->position.y + y >= 8 && player->position.x + x <= 30 && player->position.y + y <= 8) {
+				// Principal Office
+				return promptHallwayRequirement(game, player, scene, 0);
+			}
+			else if (player->position.x + x >= 71 && player->position.y + y >= 37 && player->position.x + x <= 76 && player->position.y + y <= 37) {
+				// Garden
+				return promptHallwayRequirement(game, player, scene, 1);
+			}
+			else if (player->position.x + x >= 142 && player->position.y + y >= 30 && player->position.x + x <= 147 && player->position.y + y <= 30) {
+				// Faculty Office
+				return promptHallwayRequirement(game, player, scene, 2);
+			}
+			break;
 		case 9:
 			updateCurrentActiveNPC(scene, findNPCwithCoordinate(scene, player->position.x + x, player->position.y + y));
 			interactWithStudent(scene);
@@ -926,6 +1012,7 @@ void debugMode(Player* player, GameManager* game, SceneManager *scene) {
 	printf("Number of NPCs: %d\n", scene->numberOfNPC);
 	printf("Principal Location: %s\n", areaIDtoString(scene->npcList[0].coordinate.areaID));
 	printf("Principal Location Data Index 2: %c\n", game->mapData[calculateIndexFromCoordinate(scene->npcList[0].coordinate.x, scene->npcList[0].coordinate.y, TOTAL_WIDTH_MAP, MAP_DATASIZE, 2)]);
+	printf("Hallway Requirements: [%d, %d, %d]\n", game->hallwayRequirements[0].type, game->hallwayRequirements[1].type, game->hallwayRequirements[2].type);
 	printf("________________________________________\n");
 }
 
@@ -1113,6 +1200,7 @@ void spawnItem(GameManager *game, SceneManager *scene, DroppedItem item) {
 
 }
 
+
 void spawnGuardKey(GameManager *game, SceneManager *scene) {
 	srand(time(NULL));
 	int spawnRandomizer = rand() % 3;
@@ -1137,6 +1225,44 @@ void spawnGuardKey(GameManager *game, SceneManager *scene) {
 	}
 }
 
+void changeAreaDataState(GameManager* game, int x, int y, int dataState) {
+	game->mapData[calculateIndexFromCoordinate(x, y, TOTAL_WIDTH_MAP, MAP_DATASIZE, 0)] = dataState + '0';
+}
+void changeAreaMoveableState(GameManager *game, int x1, int y1, int x2, int y2, int isBlock, int dataState) {
+	for (int i = y1; i <= y2; i++) {
+		for (int j = x1; j <= x2; j++) {
+			game->mapData[calculateIndexFromCoordinate(j, i, TOTAL_WIDTH_MAP, MAP_DATASIZE, 2)] = isBlock + '0';
+			changeAreaDataState(game, j, i, dataState);
+		}
+	}
+}
+
+void initiateHallwayRequirements(GameManager *game) {
+	int typeRandomizer = 0;
+	int statRequirementRandomizer = 0;
+	int itemTypeRandomizer = 0;
+	for (int i = 0; i < 3; i++) {
+		srand(time(NULL) + (i*time(NULL)));
+		typeRandomizer = 1 + rand() % 3;
+		statRequirementRandomizer = 40 + rand() % 41; // 40 to 80
+		switch (typeRandomizer) {
+			case 1: // Item Requirement
+				itemTypeRandomizer = 2 + rand() % 5; // 2 to 6
+				game->hallwayRequirements[i].type = 1;
+				game->hallwayRequirements[i].itemID = itemTypeRandomizer;
+				break;
+			case 2: // PHP Requirement
+				game->hallwayRequirements[i].type = 2;
+				game->hallwayRequirements[i].statRequired = statRequirementRandomizer;
+				break;
+			case 3: // CHA Requirement
+				game->hallwayRequirements[i].type = 3;
+				game->hallwayRequirements[i].statRequired = statRequirementRandomizer;
+				break;
+		}
+	}
+}
+
 Player initiatePlayerManager() {
 	Player player = {
 		{100, 50, 30}, // Stats: MH, PHP, CHA
@@ -1150,7 +1276,11 @@ GameManager initiateGameManager() {
 	GameManager game = {
 		{DEFAULT_MOVE_UP, DEFAULT_MOVE_LEFT, DEFAULT_MOVE_DOWN, DEFAULT_MOVE_RIGHT}, // Navigation keybinds
 		{{0}, 0, 0, 1, time(NULL)}, // Game Time
-		{0}, // Item List in Map
+		{0}, // Item List in Map,
+		{0}, // Hallway Requirements
+		0, // Item ID required
+		0, // PHP Required
+		0, // CHA Required
 		0, // Total Item in Map
 		{0, 0}, // Relative Camera Coordinate
 		(char*)malloc(sizeof(char)), // Map Data Initial Allocation
@@ -1190,6 +1320,11 @@ int main(void) {
 	initiatePrincipalNPCspawn(&game, &scene);
 	initiateGuardNPCspawn(&game, &scene);
 	initiatePlayerStats(&game, &player, &scene);
+	initiateHallwayRequirements(&game);
+
+	changeAreaMoveableState(&game, 25, 8, 30, 8, 0, 2);
+	changeAreaMoveableState(&game, 71, 37, 76, 37, 0, 2);
+	changeAreaMoveableState(&game, 142, 30, 147, 30, 0, 2);
 
 	if (scene.npcList[1].requirements[0].type == 1) {
 		spawnGuardKey(&game, &scene);

@@ -59,7 +59,7 @@ Index 1
 Index 0
 0
 1 - Item
-2
+2 - Requirement Check
 3
 4
 5 - Principal NPC
@@ -129,6 +129,12 @@ Principal NPC - ID 20
 
 Items
 Guard Key - ID 1
+BSCpE ID Sling - ID 2
+Excel's Glue - ID 3
+Wilfred's Stapler - ID 4
+Trixie's Ballpen - ID 5
+VJ's T-SQUARE - ID 6
+
 
 Item Types
 0 - Requirement
