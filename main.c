@@ -139,6 +139,7 @@ typedef struct {
 	char* interfaceData;
 	int isGameRunning;
 	int debugMode;
+	int gameState;
 } GameManager;
 
 typedef void (*EventAction)(GameManager* game, SceneManager* scene, Player* player, int dialougeID);
@@ -293,19 +294,19 @@ char* itemIDtoString(int n) {
 		return itemName;
 	case 7:
 		itemName = (char*)malloc(sizeof(char) * strlen(ANSI_COLOR_BLUE "SHAUN'S NOTE (+10 CHA)" ANSI_COLOR_RESET));
-		itemName = ANSI_COLOR_BLUE "SHAUN'S NOTE" ANSI_COLOR_RESET;
+		itemName = ANSI_COLOR_BLUE "SHAUN'S NOTE (+10 CHA)" ANSI_COLOR_RESET;
 		return itemName;
 	case 8:
 		itemName = (char*)malloc(sizeof(char) * strlen(ANSI_COLOR_BLUE "KEM'S CREDIT CARD (+20 PHP)" ANSI_COLOR_RESET));
-		itemName = ANSI_COLOR_BLUE "KEM'S CREDIT CARD" ANSI_COLOR_RESET;
+		itemName = ANSI_COLOR_BLUE "KEM'S CREDIT CARD (+20 PHP)" ANSI_COLOR_RESET;
 		return itemName;
 	case 9:
 		itemName = (char*)malloc(sizeof(char) * strlen(ANSI_COLOR_BLUE "MAICA'S EARPHONE (+8 CHA)" ANSI_COLOR_RESET));
-		itemName = ANSI_COLOR_BLUE "MAICA'S EARPHONE" ANSI_COLOR_RESET;
+		itemName = ANSI_COLOR_BLUE "MAICA'S EARPHONE (+8 CHA)" ANSI_COLOR_RESET;
 		return itemName;
 	case 10:
 		itemName = (char*)malloc(sizeof(char) * strlen(ANSI_COLOR_BLUE "DEEP ROCK (+15 CHA)" ANSI_COLOR_RESET));
-		itemName = ANSI_COLOR_BLUE "DEEP ROCK" ANSI_COLOR_RESET;
+		itemName = ANSI_COLOR_BLUE "DEEP ROCK (+15 CHA)" ANSI_COLOR_RESET;
 		return itemName;
 	}
 	return NULL;
@@ -699,7 +700,7 @@ void changeStatIfRequirementMet(GameManager* game, SceneManager* scene, Player* 
 
 void talkToStudentAndExit(GameManager* game, SceneManager* scene, Player* player, int dialougeID) {
 	srand(time(NULL));
-	int statRandomizer = 10 + (rand() % 10);
+	int statRandomizer = 2 + (rand() % 5);
 	player->stats.Charisma += statRandomizer;
 	game->gameTime.timeWhenDayStarted -= 10;
 	game->gameTime.timeSnapshot[2] = time(NULL);
@@ -710,7 +711,7 @@ void talkToStudentAndExit(GameManager* game, SceneManager* scene, Player* player
 
 void begToStudentAndExit(GameManager* game, SceneManager* scene, Player* player, int dialougeID) {
 	srand(time(NULL));
-	int statRandomizer = 10 + (rand() % 10);
+	int statRandomizer = 2 + (rand() % 5);
 	player->stats.Pesos += statRandomizer;
 	if (player->stats.mentalHealth - statRandomizer < 0) {
 		player->stats.mentalHealth = 0;
@@ -738,7 +739,7 @@ void spawnStudentNPC(GameManager *game, SceneManager *scene) {
 	if (game->gameTime.timeSnapshot[4] == 0) {
 		game->gameTime.timeSnapshot[4] = time(NULL);
 	}
-	if (time(NULL) - game->gameTime.timeSnapshot[4] >= 3) {
+	if (time(NULL) - game->gameTime.timeSnapshot[4] >= 15) {
 		switch (areaRandomizer) {
 		case 0: // Study Area
 			areaID = 3;
@@ -931,17 +932,19 @@ int canPlayerMoveThere(Player* player, SceneManager *scene, GameManager* game, i
 
 void addItemInInventory(Player* player, int id, int type, int statModifier, int quantity) {
 	// Add item to inventory
-	player->inventory[player->itemsNumber].id = id;
-	player->inventory[player->itemsNumber].type = type;
-	player->inventory[player->itemsNumber].statModifier = statModifier;
-	player->inventory[player->itemsNumber].quantity = quantity;
-	if (player->inventory[player->itemsNumber].type == 1) {
-		player->stats.Charisma += statModifier;
+	if (player->itemsNumber+1 < 13) {
+		player->inventory[player->itemsNumber].id = id;
+		player->inventory[player->itemsNumber].type = type;
+		player->inventory[player->itemsNumber].statModifier = statModifier;
+		player->inventory[player->itemsNumber].quantity = quantity;
+		if (player->inventory[player->itemsNumber].type == 1) {
+			player->stats.Charisma += statModifier;
+		}
+		else if (player->inventory[player->itemsNumber].type == 2) {
+			player->stats.Pesos += statModifier;
+		}
+		++(player->itemsNumber);
 	}
-	else if (player->inventory[player->itemsNumber].type == 2) {
-		player->stats.Pesos += statModifier;
-	}
-	++(player->itemsNumber);
 }
 
 void removeItemInInventory(Player* player, int itemIndex) {
@@ -1018,6 +1021,9 @@ int readInput(GameManager* game, SceneManager *scene, Player *player) {
 		if (game->debugMode == 0) { game->debugMode = 1; }
 		else game->debugMode = 0;
 	}
+	if (userInput == 'r') {
+		return -1;
+	}
 	if (game->debugMode == 1) {
 		if (userInput == 'k') { // Student
 			// To be implemenmted template for NPC spawning
@@ -1051,6 +1057,9 @@ void updateTime(GameManager *game) {
 	if (game->gameTime.timeInSeconds >= 1020) {
 		game->gameTime.timeWhenDayStarted = time(NULL);
 		++game->gameTime.day;
+		if (game->gameTime.day == 5) {
+			game->gameState = 2;
+		}
 	}
 }
 
@@ -1241,6 +1250,7 @@ void reducePlayerStatRandomly(GameManager *game, SceneManager *scene, Player *pl
 
 void spawnItem(GameManager *game, SceneManager *scene, DroppedItem item) {
 	if (game->mapData[calculateIndexFromCoordinate(item.coordinate.x, item.coordinate.y, TOTAL_WIDTH_MAP, MAP_DATASIZE, 0)] == 9 + '0') { return; }
+	if (game->mapData[calculateIndexFromCoordinate(item.coordinate.x, item.coordinate.y, TOTAL_WIDTH_MAP, MAP_DATASIZE, 0)] == 1 + '0') { return; }
 	game->mapData[calculateIndexFromCoordinate(item.coordinate.x, item.coordinate.y, TOTAL_WIDTH_MAP, MAP_DATASIZE, 0)] = 1 + '0';
 	++game->itemNumberInMap;
 	for (int i = 0; i < game->itemNumberInMap; i++) {
@@ -1323,7 +1333,7 @@ void itemRandomSpawning(GameManager *game, Player *player, SceneManager *scene) 
 	if (game->gameTime.timeSnapshot[7] == 0) {
 		game->gameTime.timeSnapshot[7] = time(NULL);
 	}
-	if (time(NULL) - game->gameTime.timeSnapshot[7] >= 20) {
+	if (time(NULL) - game->gameTime.timeSnapshot[7] >= 10) {
 		switch (areaRandomizer) {
 		case 0: 
 			Item.id = itemRandomizer;
@@ -1367,6 +1377,53 @@ void itemRandomSpawning(GameManager *game, Player *player, SceneManager *scene) 
 	}
 }
 
+void printMainMenu(GameManager *game) {
+	printf("SOLO\n");
+	printf("INFILTRATION TO\n");
+	printf("MEET THE\n");
+	printf("PRINCIPAL\n");
+	printf("\n\n\n");
+	printf("[Press any button to start]");
+	char chr = _getch();
+	game->gameState = 1;
+}
+
+void initiateGame(GameManager *game, Player *player, SceneManager *scene) {
+	updateCameraRelativeCoordinate(game, &player);
+	updateCurrentActivePrompt(scene, "Objective: Meet the Principal", -1, 0);
+	printf("\33[?25l"); // Hide the cursor
+	//printf("\33[?25h"); // Re enable cursor
+	if (initiateDatas(game) == 0) { printf(ANSI_COLOR_RED "{No Map Data}"); return; };
+
+	initiatePrincipalNPCspawn(game, scene);
+	initiateGuardNPCspawn(game, scene);
+	initiatePlayerStats(game, player, scene);
+	initiateHallwayRequirements(game);
+
+	changeAreaMoveableState(game, 25, 8, 30, 8, 0, 2);
+	changeAreaMoveableState(game, 71, 37, 76, 37, 0, 2);
+	changeAreaMoveableState(game, 142, 30, 147, 30, 0, 2);
+
+	if (scene->npcList[1].requirements[0].type == 1) {
+		spawnGuardKey(game, scene);
+	}
+}
+
+void tryAgainScreen(GameManager *game) {
+	clearConsole();
+	printf("Oh no... you ran out of time...\n\n\n\n");
+	printf("[Press Space to Retry]\n");
+	printf("[Press n to exit]\n");
+	char userInput = _getch();
+	if (userInput == ' ') {
+		game->gameState = 3;
+		clearConsole();
+	}
+	else if (userInput == 'n') {
+		game->isGameRunning = 0;
+	}
+}
+
 Player initiatePlayerManager() {
 	Player player = {
 		{100, 50, 30}, // Stats: MH, PHP, CHA
@@ -1390,7 +1447,8 @@ GameManager initiateGameManager() {
 		(char*)malloc(sizeof(char)), // Map Data Initial Allocation
 		(char*)malloc(sizeof(char)), // UI Data Initial Allocation
 		1, // Game Running Indicator
-		0 // Debug Mode
+		0, // Debug Mode
+		0 // Game State
 	};
 	return game;
 }
@@ -1414,40 +1472,36 @@ int main(void) {
 	GameManager game = initiateGameManager();
 	SceneManager scene = initiateSceneManager();
 
-
-	updateCameraRelativeCoordinate(&game, &player);
-	updateCurrentActivePrompt(&scene, "Objective: Meet the Principal", -1, 0);
-	printf("\33[?25l"); // Hide the cursor
-	//printf("\33[?25h"); // Re enable cursor
-	if (initiateDatas(&game) == 0) { printf(ANSI_COLOR_RED "{No Map Data}"); return; };
-
-	initiatePrincipalNPCspawn(&game, &scene);
-	initiateGuardNPCspawn(&game, &scene);
-	initiatePlayerStats(&game, &player, &scene);
-	initiateHallwayRequirements(&game);
-
-	changeAreaMoveableState(&game, 25, 8, 30, 8, 0, 2);
-	changeAreaMoveableState(&game, 71, 37, 76, 37, 0, 2);
-	changeAreaMoveableState(&game, 142, 30, 147, 30, 0, 2);
-
-	if (scene.npcList[1].requirements[0].type == 1) {
-		spawnGuardKey(&game, &scene);
-	}
-
-	
-	renderUI(&game, &scene, &player);
-
-	while (readInput(&game, &scene, &player) == 1) {
-		if (game.isGameRunning == 1) {
+	while (game.isGameRunning == 1) {
+		if (game.gameState == 0) { // Main Menu
+			printMainMenu(&game);
 			clearConsole();
+			initiateGame(&game, &player, &scene);
 			updateTime(&game);
+			renderUI(&game, &scene, &player);
+		}
+		else if (game.gameState == 1) { // Main game
+			if (readInput(&game, &scene, &player) == -1) { game.gameState = 3; clearConsole(); continue; }
+			clearConsole();
 			if (game.debugMode == 1) { debugMode(&player, &game, &scene); }
 			renderUI(&game, &scene, &player);
 			reducePlayerStatRandomly(&game, &scene, &player);
 			spawnStudentNPC(&game, &scene);
 			itemRandomSpawning(&game, &player, &scene);
+			updateTime(&game);
 		}
-		else { break; }
+		else if (game.gameState == 2) { // Try Again Screen
+			tryAgainScreen(&game);
+		}
+		else if (game.gameState == 3) { // Restart Game
+			player = initiatePlayerManager();
+			game = initiateGameManager();
+			scene = initiateSceneManager();
+			initiateGame(&game, &player, &scene);
+			updateTime(&game);
+			renderUI(&game, &scene, &player);
+			game.gameState = 1;
+		}
 	}
 	free(scene.activePrompt.option);
 	free(scene.npcList);
