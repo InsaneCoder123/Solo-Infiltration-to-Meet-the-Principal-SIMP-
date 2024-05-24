@@ -142,6 +142,7 @@ typedef struct {
 	int isGameRunning;
 	int debugMode;
 	int gameState;
+	int hasRequiredItemSpawned;
 } GameManager;
 
 typedef void (*EventAction)(GameManager* game, SceneManager* scene, Player* player, int dialougeID);
@@ -609,7 +610,7 @@ void renderUI(GameManager *game, SceneManager *scene, Player* player) {
 		}
 	}
 	if (scene->lostPHP != 0) {
-		printf(ANSI_COLOR_RED "You are becoming insane by the second. You lost some things " ANSI_COLOR_RESET);
+		printf(ANSI_COLOR_RED "You are becoming insane by the second. You lost some money " ANSI_COLOR_RESET);
 		printf(ANSI_COLOR_RED "(-%d PHP)\n" ANSI_COLOR_RESET, scene->lostPHP);
 		if (time(NULL) - game->gameTime.timeSnapshot[0] >= 5) {
 			scene->lostPHP = 0;
@@ -952,6 +953,7 @@ void addItemInInventory(Player* player, int id, int type, int statModifier, int 
 }
 
 void removeItemInInventory(Player* player, int itemIndex) {
+	if (player->inventory[itemIndex].id == 0 || player->inventory[itemIndex].id == -1) { return; }
 	for (int i = 0; i < player->itemsNumber; i++) {
 		if (i == itemIndex) {
 			player->inventory[i] = player->inventory[i + 1];
@@ -1027,6 +1029,32 @@ int readInput(GameManager* game, SceneManager *scene, Player *player) {
 	}
 	if (userInput == 'r') {
 		return -1;
+	}
+	switch (userInput) {
+	case '1':
+		removeItemInInventory(player, 0);
+		break;
+	case '2':
+		removeItemInInventory(player, 1);
+		break;
+	case '3':
+		removeItemInInventory(player, 2);
+		break;
+	case '4':
+		removeItemInInventory(player, 3);
+		break;
+	case '5':
+		removeItemInInventory(player, 4);
+		break;
+	case '6':
+		removeItemInInventory(player, 5);
+		break;
+	case '8':
+		removeItemInInventory(player, 6);
+		break;
+	case '9':
+		removeItemInInventory(player, 7);
+		break;
 	}
 	if (game->debugMode == 1) {
 		if (userInput == 'k') { // Student
@@ -1333,44 +1361,49 @@ void itemRandomSpawning(GameManager *game, Player *player, SceneManager *scene) 
 	srand(time(NULL));
 	int areaRandomizer = rand() % 6;
 	int itemRandomizer = 2 + rand() % 9; // 2 to 9
+	int priorityItemRandomizer = rand() % 3;
 	DroppedItem Item;
+	Item.id = itemRandomizer;
 	if (game->gameTime.timeSnapshot[7] == 0) {
 		game->gameTime.timeSnapshot[7] = time(NULL);
+	}
+	if (game->hasRequiredItemSpawned < 3 && priorityItemRandomizer == 0) {
+		for (int i = game->hasRequiredItemSpawned; i < 3; i++) {
+			if (game->hallwayRequirements[i].type == 1) {
+				Item.id = game->hallwayRequirements[i].itemID;
+				++game->hasRequiredItemSpawned;
+				break;
+			}
+		}
 	}
 	if (time(NULL) - game->gameTime.timeSnapshot[7] >= 10) {
 		switch (areaRandomizer) {
 		case 0: 
-			Item.id = itemRandomizer;
 			Item.coordinate.x = 1;
 			Item.coordinate.y = 29;
 			spawnItem(game, scene, Item);
 			break;
 		case 1:
-			Item.id = itemRandomizer;
 			Item.coordinate.x = 163;
 			Item.coordinate.y = 39;
 			spawnItem(game, scene, Item);
 			break;
 		case 2: 
-			Item.id = itemRandomizer;
 			Item.coordinate.x = 117;
 			Item.coordinate.y = 44;
 			spawnItem(game, scene, Item);
 			break;
 		case 3: 
-			Item.id = itemRandomizer;
 			Item.coordinate.x = 70;
 			Item.coordinate.y = 15;
 			spawnItem(game, scene, Item);
 			break;
 		case 4:
-			Item.id = itemRandomizer;
 			Item.coordinate.x = 25;
 			Item.coordinate.y = 50;
 			spawnItem(game, scene, Item);
 			break;
 		case 5:
-			Item.id = itemRandomizer;
 			Item.coordinate.x = 36;
 			Item.coordinate.y = 13;
 			spawnItem(game, scene, Item);
@@ -1452,7 +1485,8 @@ GameManager initiateGameManager() {
 		(char*)malloc(sizeof(char)), // UI Data Initial Allocation
 		1, // Game Running Indicator
 		0, // Debug Mode
-		0 // Game State
+		0, // Game State
+		0 // Has required item spawned
 	};
 	return game;
 }
