@@ -146,7 +146,7 @@ typedef struct {
 } GameManager;
 
 typedef void (*EventAction)(GameManager* game, SceneManager* scene, Player* player, int dialougeID);
-struct Option{
+struct Option {
 	EventAction eventAction;
 	char OptionText[50];
 	int id;
@@ -154,43 +154,44 @@ struct Option{
 };
 
 void AddOption(SceneManager* scene, char* dialouge, int id, int pointedDialougeID, void (*f)(GameManager, SceneManager, Player, int));
-void updateCurrentActivePrompt(SceneManager *scene, char* dialouge, int choice, int dialougeStage);
+void updateCurrentActivePrompt(SceneManager* scene, char* dialouge, int choice, int dialougeStage);
 void changeMapState(GameManager* game, int areaID, int isHide);
 void deleteCurrentActiveNPC(GameManager* game, SceneManager* scene);
 void addItemInInventory(Player* player, int id, int type, int statModifier, int quantity);
 void removeItemInInventory(Player* player, int itemIndex);
-char *randomDialougeStudent();
+char* randomDialougeStudent();
 int spawnNPC(GameManager* game, SceneManager* scene, Requirement* requirements, int amountOfRequirements, int x, int y, int areaID, int id, char** dialouges, int numberOfDialouges);
 
 void clearConsole() {
-	printf("\033[2J\033[1;1H");
+	system("cls");
 }
 
-void updateCurrentActiveNPC(SceneManager *scene, NPC activeNPC) {
+void updateCurrentActiveNPC(SceneManager* scene, NPC activeNPC) {
 	scene->currentActiveNPC = activeNPC;
 }
 
-void clearPromptAndOptions(GameManager *game, SceneManager *scene, Player* player) {
-	updateCurrentActivePrompt(scene, " ", -1, 0, NULL);
+void clearPromptAndOptions(GameManager* game, SceneManager* scene, Player* player) {
+	updateCurrentActivePrompt(scene, " ", -1, 0);
 	scene->activePrompt.option = (Option*)realloc(scene->activePrompt.option, 0);
 	scene->activePrompt.numberOfOptions = 0;
 }
 
-void exitInteractionWithNPC(GameManager* game, SceneManager *scene, Player* player, int dialougeID) {
-	updateCurrentActivePrompt(scene, " ", -1, 0, NULL);
+void exitInteractionWithNPC(GameManager* game, SceneManager* scene, Player* player, int dialougeID) {
+	updateCurrentActivePrompt(scene, " ", -1, 0);
 	scene->activePrompt.option = (Option*)realloc(scene->activePrompt.option, 0);
 	scene->activePrompt.numberOfOptions = 0;
 	scene->isInteractionActive = 0;
 }
 
-void goToDialougeAndOptions(GameManager *game, SceneManager *scene, Player *player, int dialougeID, int dialougeStage) {
+void goToDialougeAndOptions(GameManager* game, SceneManager* scene, Player* player, int dialougeID, int dialougeStage) {
 	clearPromptAndOptions(game, scene, player);
 	updateCurrentActivePrompt(scene, scene->currentActiveNPC.dialouge.dialouges[dialougeID], 0, dialougeStage);
 	AddOption(scene, "Leave", 0, -1, exitInteractionWithNPC);
 }
 
-int doesPlayerHaveItem(Player *player, int itemIdRequirement) {
-	for (int i = 0; i < player->itemsNumber; i++) {
+int doesPlayerHaveItem(Player* player, int itemIdRequirement) {
+	int i;
+	for (i = 0; i < player->itemsNumber; i++) {
 		if (player->inventory[i].id == itemIdRequirement) {
 			return i;
 		}
@@ -200,10 +201,10 @@ int doesPlayerHaveItem(Player *player, int itemIdRequirement) {
 
 void goToDialougeAndOptionsIfRequirementMet(GameManager* game, SceneManager* scene, Player* player, int dialougeID) {
 	clearPromptAndOptions(game, scene, player);
-	switch (scene->currentActiveNPC.requirements[dialougeID-2].type) {
+	switch (scene->currentActiveNPC.requirements[dialougeID - 2].type) {
 	case 1: // Item Requirement
 		if (doesPlayerHaveItem(player, scene->currentActiveNPC.requirements[0].itemID) != -1) {
-			updateCurrentActivePrompt(scene, scene->currentActiveNPC.dialouge.dialouges[dialougeID], 0, 30, NULL);
+			updateCurrentActivePrompt(scene, scene->currentActiveNPC.dialouge.dialouges[dialougeID], 0, 30);
 			AddOption(scene, "Leave", 0, -1, exitInteractionWithNPC);
 			removeItemInInventory(player, doesPlayerHaveItem(player, scene->currentActiveNPC.requirements[0].itemID));
 		}
@@ -213,7 +214,7 @@ void goToDialougeAndOptionsIfRequirementMet(GameManager* game, SceneManager* sce
 		break;
 	case 2: // PHP Requirement
 		if (player->stats.Pesos >= scene->currentActiveNPC.requirements[0].statRequired) {
-			updateCurrentActivePrompt(scene, scene->currentActiveNPC.dialouge.dialouges[dialougeID], 0, 30, NULL);
+			updateCurrentActivePrompt(scene, scene->currentActiveNPC.dialouge.dialouges[dialougeID], 0, 30);
 			AddOption(scene, "Leave", 0, -1, exitInteractionWithNPC);
 		}
 		else {
@@ -222,27 +223,27 @@ void goToDialougeAndOptionsIfRequirementMet(GameManager* game, SceneManager* sce
 		break;
 	case 3: // CHA Requirement
 		if (player->stats.Charisma >= scene->currentActiveNPC.requirements[0].statRequired) {
-			updateCurrentActivePrompt(scene, scene->currentActiveNPC.dialouge.dialouges[dialougeID], 0, 30, NULL);
+			updateCurrentActivePrompt(scene, scene->currentActiveNPC.dialouge.dialouges[dialougeID], 0, 30);
 			AddOption(scene, "Leave", 0, -1, exitInteractionWithNPC);
 		}
-		else { 
+		else {
 			goToDialougeAndOptions(game, scene, player, 1, 10);
 		}
 		break;
 	}
 }
 
-void getItemOrStatIfRequirementMet(GameManager *game, SceneManager *scene, Player *player, int dialougeID) {
+void getItemOrStatIfRequirementMet(GameManager* game, SceneManager* scene, Player* player, int dialougeID) {
 	clearPromptAndOptions(game, scene, player);
 }
 
 
-void AddOption(SceneManager *scene, char *dialouge, int id, int pointedDialougeID, void (*f)(GameManager, SceneManager, Player, int)) {
+void AddOption(SceneManager* scene, char* dialouge, int id, int pointedDialougeID, void (*f)(GameManager, SceneManager, Player, int)) {
 	// Add an option when interacting with an NPC, or possibly an object
 	// The option added will have an attached function assigned in runtime that can be executed when the player selects the option
 	// The option may also have an attached pointed dialouge ID that will update the current prompt to that dialouge
 	int newNumberOfOptions = scene->activePrompt.numberOfOptions + 1;
- 	Option* temp = (Option*)realloc(scene->activePrompt.option, sizeof(Option)*newNumberOfOptions);
+	Option* temp = (Option*)realloc(scene->activePrompt.option, sizeof(Option) * newNumberOfOptions);
 	if (temp == NULL) {
 		printf(ANSI_COLOR_RED "\n[Memory Allocation Field]\n" ANSI_COLOR_RESET);
 		return;
@@ -255,7 +256,7 @@ void AddOption(SceneManager *scene, char *dialouge, int id, int pointedDialougeI
 	scene->activePrompt.option[newNumberOfOptions - 1].id = id;
 	scene->activePrompt.option[newNumberOfOptions - 1].pointedDialougeID = pointedDialougeID;
 	scene->activePrompt.option[newNumberOfOptions - 1].eventAction = f;
-	
+
 }
 
 int isTwoCoordinatesTheSame(int x, int y, int x2, int y2) {
@@ -369,7 +370,7 @@ char intToChar(int n) {
 	// Converts an int into a char
 	// Used in the conversion from user interface data to a char representation of the data to use in the render of the user interface
 	char uiArr[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ-: ?";
-	return uiArr[n-1];
+	return uiArr[n - 1];
 }
 
 char* requirementTypeToString(int n) {
@@ -385,9 +386,10 @@ char* requirementTypeToString(int n) {
 }
 
 
-NPC findNPCwithCoordinate(SceneManager *scene, int x, int y) {
+NPC findNPCwithCoordinate(SceneManager* scene, int x, int y) {
 	// Iliterates through the list of NPC and then returns the NPC that has a specific coordinate
-	for (int i = 0; i < scene->numberOfNPC; i++) {
+	int i;
+	for (i = 0; i < scene->numberOfNPC; i++) {
 		if (isTwoCoordinatesTheSame(scene->npcList[i].coordinate.x, scene->npcList[i].coordinate.y, x, y)) {
 			return scene->npcList[i];
 		}
@@ -397,14 +399,14 @@ NPC findNPCwithCoordinate(SceneManager *scene, int x, int y) {
 	return temp;
 }
 
-void updateCameraRelativeCoordinate(GameManager *game, Player *player) {
+void updateCameraRelativeCoordinate(GameManager* game, Player* player) {
 	// Updates the absolute coordinate of the point in the top left of the player based on the render distance around the player
 	// This is used as the reference coordinate when rendering the map
 	game->relativeCameraCoordinate[0] = player->position.x - (CAMERA_WIDTH - 1) / 2;
 	game->relativeCameraCoordinate[1] = player->position.y - (CAMERA_HEIGHT - 1) / 2;
 }
 
-int calculateIndexFromCoordinate(int x, int y, int width, int dataSize, int dataIndex) { 
+int calculateIndexFromCoordinate(int x, int y, int width, int dataSize, int dataIndex) {
 	// Calculates the index of the data of a element in a one dimensional array
 	// Refer to the documentation for the corresponding data of the elements (map and user interface)
 	// Each data of an element has a particular amount of data attached to it. 
@@ -412,12 +414,12 @@ int calculateIndexFromCoordinate(int x, int y, int width, int dataSize, int data
 	return (y * width * dataSize) + (x * dataSize) + dataIndex;
 }
 
-void updateCurrentActivePrompt(SceneManager *scene, char *dialouge, int choice, int dialougeStage) {
+void updateCurrentActivePrompt(SceneManager* scene, char* dialouge, int choice, int dialougeStage) {
 
 	// Updates the current active prompt in the screen
 
 	size_t newSize = strlen(dialouge) + 1;
-	char *temp = (char*)realloc(scene->activePrompt.dialouge, newSize);
+	char* temp = (char*)realloc(scene->activePrompt.dialouge, newSize);
 	if (temp == NULL) {
 		printf(ANSI_COLOR_RED "\n[Memory Allocation Field]\n" ANSI_COLOR_RESET);
 		return;
@@ -429,22 +431,23 @@ void updateCurrentActivePrompt(SceneManager *scene, char *dialouge, int choice, 
 }
 
 
-int spawnNPC(GameManager* game, SceneManager *scene, Requirement *requirements, int amountOfRequirements, int x, int y, int areaID, int id, char **dialouges, int numberOfDialouges) {
+int spawnNPC(GameManager* game, SceneManager* scene, Requirement* requirements, int amountOfRequirements, int x, int y, int areaID, int id, char** dialouges, int numberOfDialouges) {
 	// Spawns an NPC by initializing its coordinates, dialouges and then modifying the map data to indicate the presence of the NPC
 	// Additionally, add the NPC to the scene manager NPC list
 	if (findNPCwithCoordinate(scene, x, y).id != -100) { return 0; }
 	if (game->mapData[calculateIndexFromCoordinate(x, y, TOTAL_WIDTH_MAP, MAP_DATASIZE, 0)] == '1') { return 0; }
 	scene->npcList = (NPC*)realloc(scene->npcList, sizeof(NPC) * (scene->numberOfNPC + 1));
-	NPC *lastFreeSpaceInNPCList = &scene->npcList[scene->numberOfNPC];
+	NPC* lastFreeSpaceInNPCList = &scene->npcList[scene->numberOfNPC];
 	lastFreeSpaceInNPCList->coordinate.x = x;
 	lastFreeSpaceInNPCList->coordinate.y = y;
 	lastFreeSpaceInNPCList->id = id;
 	lastFreeSpaceInNPCList->coordinate.areaID = areaID;
-	lastFreeSpaceInNPCList->dialouge.dialouges = (char**)malloc(numberOfDialouges*sizeof(char*));
+	lastFreeSpaceInNPCList->dialouge.dialouges = (char**)malloc(numberOfDialouges * sizeof(char*));
 	int dialougeIdAssignment = 0;
 	if (amountOfRequirements != 0) {
-		lastFreeSpaceInNPCList->requirements = (Requirement*)malloc(sizeof(Requirement)*amountOfRequirements);
-		for (int i = 0; i < amountOfRequirements; i++) {
+		lastFreeSpaceInNPCList->requirements = (Requirement*)malloc(sizeof(Requirement) * amountOfRequirements);
+		int i;
+		for (i = 0; i < amountOfRequirements; i++) {
 			lastFreeSpaceInNPCList->amountOfRequirements = amountOfRequirements;
 			lastFreeSpaceInNPCList->requirements[i].itemID = requirements[i].itemID;
 			lastFreeSpaceInNPCList->requirements[i].requirementID = requirements[i].requirementID;
@@ -452,8 +455,9 @@ int spawnNPC(GameManager* game, SceneManager *scene, Requirement *requirements, 
 			lastFreeSpaceInNPCList->requirements[i].type = requirements[i].type;
 		}
 	}
-	for (int i = 0; i < numberOfDialouges; i++) {
-		lastFreeSpaceInNPCList->dialouge.dialouges[i] = (char*)malloc((strlen(dialouges[i])+1) * sizeof(char));
+	int i;
+	for (i = 0; i < numberOfDialouges; i++) {
+		lastFreeSpaceInNPCList->dialouge.dialouges[i] = (char*)malloc((strlen(dialouges[i]) + 1) * sizeof(char));
 		lastFreeSpaceInNPCList->dialouge.dialougeID = dialougeIdAssignment++;
 		strcpy(lastFreeSpaceInNPCList->dialouge.dialouges[i], dialouges[i]);
 	}
@@ -475,11 +479,11 @@ char onOption(int currentOption, int optionID) {
 	return ' ';
 }
 
-int whatNPClocatedAt(GameManager *game, int referenceCoordinateX, int referenceCoordinateY, int screenPointerX, int screenPointerY) {
+int whatNPClocatedAt(GameManager* game, int referenceCoordinateX, int referenceCoordinateY, int screenPointerX, int screenPointerY) {
 	return game->mapData[calculateIndexFromCoordinate(referenceCoordinateX + screenPointerX, referenceCoordinateY + screenPointerY, TOTAL_WIDTH_MAP, MAP_DATASIZE, 0)] - '0';
 }
 
-void renderUI(GameManager *game, SceneManager *scene, Player* player) {
+void renderUI(GameManager* game, SceneManager* scene, Player* player) {
 	// Utilizes two independent tracker for the current coordinate that the nested loops points to relative to the coordinate designated in
 	// the map data and the user interface data which creates the illusion of boundary and limited render distance around the player
 	// Additionally, it allows the render of player stats data in the right side of the render of the map data as independent entities
@@ -492,14 +496,17 @@ void renderUI(GameManager *game, SceneManager *scene, Player* player) {
 
 	int currentInventorySlot = 0;
 
-	for (int screenY = 0; screenY < SCREEN_HEIGHT; screenY++) {
-		for (int screenX = 0; screenX < SCREEN_WIDTH; screenX++) {
+	int screenY;
+	int screenX;
+
+	for (screenY = 0; screenY < SCREEN_HEIGHT; screenY++) {
+		for (screenX = 0; screenX < SCREEN_WIDTH; screenX++) {
 			updateCameraRelativeCoordinate(game, player);
 
 			// Game Screen Rendering
 
 			if (screenX < CAMERA_WIDTH) {
-				if (game->relativeCameraCoordinate[0]+screenPointerX < 0 || game->relativeCameraCoordinate[1]+screenPointerY < 0 || game->relativeCameraCoordinate[0]+screenPointerX >= TOTAL_WIDTH_MAP || game->relativeCameraCoordinate[1]+screenPointerY >= TOTAL_HEIGHT_MAP) {
+				if (game->relativeCameraCoordinate[0] + screenPointerX < 0 || game->relativeCameraCoordinate[1] + screenPointerY < 0 || game->relativeCameraCoordinate[0] + screenPointerX >= TOTAL_WIDTH_MAP || game->relativeCameraCoordinate[1] + screenPointerY >= TOTAL_HEIGHT_MAP) {
 					printf(" ");
 					++screenPointerX;
 					continue;
@@ -516,7 +523,7 @@ void renderUI(GameManager *game, SceneManager *scene, Player* player) {
 					++screenPointerX;
 					continue;
 				}
-				if (isTwoCoordinatesTheSame((CAMERA_WIDTH-1)/2, (CAMERA_HEIGHT-1)/2, screenPointerX, screenPointerY)) {
+				if (isTwoCoordinatesTheSame((CAMERA_WIDTH - 1) / 2, (CAMERA_HEIGHT - 1) / 2, screenPointerX, screenPointerY)) {
 					printf("@");
 					++screenPointerX;
 					continue;
@@ -546,55 +553,55 @@ void renderUI(GameManager *game, SceneManager *scene, Player* player) {
 			if (screenX >= CAMERA_WIDTH) {
 				if (screenY < TOTAL_HEIGHT_UI) {
 					int currentInterfaceIndex = calculateIndexFromCoordinate(userInterfacePointerX, userInterfacePointerY, TOTAL_WIDTH_UI, UI_DATASIZE, 0);
-					if (currentInterfaceIndex < TOTAL_WIDTH_UI*TOTAL_HEIGHT_UI*UI_DATASIZE) {
+					if (currentInterfaceIndex < TOTAL_WIDTH_UI * TOTAL_HEIGHT_UI * UI_DATASIZE) {
 						char uiData[2] = { game->interfaceData[currentInterfaceIndex], game->interfaceData[currentInterfaceIndex + 1] };
 						int uiIntData = atoi(uiData);
 						switch (uiIntData) {
-							case 27:
-								if (itemIDtoString(player->inventory[currentInventorySlot].id) != NULL) {
-									printf(" - ");
-									printf("%s", itemIDtoString(player->inventory[currentInventorySlot].id));
-									printf(" - ");
-								}
-								else { printf(" [EMPTY SLOT]"); }
-								++currentInventorySlot;
-								userInterfacePointerX += TOTAL_WIDTH_UI * TOTAL_HEIGHT_UI * UI_DATASIZE;
-								continue;
-							case 53:
-								printf("%03d", player->stats.mentalHealth);
-								userInterfacePointerX += 3;
-								continue;
-							case 54:
-								printf("%03d", player->stats.Pesos);
-								userInterfacePointerX += 3;
-								continue;
-							case 55:
-								printf("%03d", player->stats.Charisma);
-								userInterfacePointerX += 3;
-								continue;
-							case 56:
-								printf("%02d", game->gameTime.timeInMinutes);
-								userInterfacePointerX += 2;
-								continue;
-							case 57:
-								printf("%02d", game->gameTime.timeInSeconds % 60);
-								userInterfacePointerX += 2;
-								continue;
-							case 58:
-								printf("%d", game->gameTime.day);
-								++userInterfacePointerX;
-								continue;
-							case 59:
-								printf("%s", areaIDtoString(player->position.areaID));
-								userInterfacePointerX += strlen(areaIDtoString(player->position.areaID));
-								continue;
+						case 27:
+							if (itemIDtoString(player->inventory[currentInventorySlot].id) != NULL) {
+								printf(" - ");
+								printf("%s", itemIDtoString(player->inventory[currentInventorySlot].id));
+								printf(" - ");
 							}
+							else { printf(" [EMPTY SLOT]"); }
+							++currentInventorySlot;
+							userInterfacePointerX += TOTAL_WIDTH_UI * TOTAL_HEIGHT_UI * UI_DATASIZE;
+							continue;
+						case 53:
+							printf("%03d", player->stats.mentalHealth);
+							userInterfacePointerX += 3;
+							continue;
+						case 54:
+							printf("%03d", player->stats.Pesos);
+							userInterfacePointerX += 3;
+							continue;
+						case 55:
+							printf("%03d", player->stats.Charisma);
+							userInterfacePointerX += 3;
+							continue;
+						case 56:
+							printf("%02d", game->gameTime.timeInMinutes);
+							userInterfacePointerX += 2;
+							continue;
+						case 57:
+							printf("%02d", game->gameTime.timeInSeconds % 60);
+							userInterfacePointerX += 2;
+							continue;
+						case 58:
+							printf("%d", game->gameTime.day);
+							++userInterfacePointerX;
+							continue;
+						case 59:
+							printf("%s", areaIDtoString(player->position.areaID));
+							userInterfacePointerX += strlen(areaIDtoString(player->position.areaID));
+							continue;
+						}
 						printf("%c", intToChar(uiIntData));
 					}
 					++userInterfacePointerX;
-					}
 				}
 			}
+		}
 		printf("\n");
 		++screenPointerY;
 		++userInterfacePointerY;
@@ -635,9 +642,9 @@ void renderUI(GameManager *game, SceneManager *scene, Player* player) {
 	printf("%s", scene->activePrompt.dialouge);
 	printf("\n");
 	if (scene->activePrompt.dialougeStage == 10) {
-		printf("(You require %d %s to complete action)\n", scene->currentActiveNPC.requirements[0].statRequired,requirementTypeToString(scene->currentActiveNPC.requirements[0].type));
+		printf("(You require %d %s to complete action)\n", scene->currentActiveNPC.requirements[0].statRequired, requirementTypeToString(scene->currentActiveNPC.requirements[0].type));
 	}
-	if (scene->activePrompt.dialougeStage == 11) { 
+	if (scene->activePrompt.dialougeStage == 11) {
 		printf("(You require %s to complete action)\n", itemIDtoString(scene->currentActiveNPC.requirements[0].type));
 	}
 	if (scene->activePrompt.dialougeStage == 12) {
@@ -654,8 +661,9 @@ void renderUI(GameManager *game, SceneManager *scene, Player* player) {
 	}
 
 	if (scene->activePrompt.option != NULL) {
-		for (int i = 0; i < scene->activePrompt.numberOfOptions; i++) {
-			printf("%c %s\n", onOption(scene->activePrompt.currentOption, scene->activePrompt.option[i].id), 
+		int i;
+		for (i = 0; i < scene->activePrompt.numberOfOptions; i++) {
+			printf("%c %s\n", onOption(scene->activePrompt.currentOption, scene->activePrompt.option[i].id),
 				scene->activePrompt.option[i].OptionText);
 		}
 	}
@@ -666,7 +674,7 @@ void changeposition(Player* player, int x, int y) {
 	player->position.y += y;
 }
 
-void interactWithEntranceGuard(SceneManager *scene) {
+void interactWithEntranceGuard(SceneManager* scene) {
 	// The current prompt will become the dialouge stored in that particular type of NPC
 	// To be implemented: Template of interaction for each NPC
 	updateCurrentActivePrompt(scene, scene->currentActiveNPC.dialouge.dialouges[0], 0, 0);
@@ -728,7 +736,7 @@ void begToStudentAndExit(GameManager* game, SceneManager* scene, Player* player,
 	deleteCurrentActiveNPC(game, scene);
 }
 
-void interactWithStudent(SceneManager *scene) {
+void interactWithStudent(SceneManager* scene) {
 	updateCurrentActivePrompt(scene, scene->currentActiveNPC.dialouge.dialouges[0], 0, 0);
 	AddOption(scene, "Talk", 0, -1, talkToStudentAndExit);
 	AddOption(scene, "Beg", 1, -1, begToStudentAndExit);
@@ -736,7 +744,7 @@ void interactWithStudent(SceneManager *scene) {
 	scene->isInteractionActive = 1;
 }
 
-void spawnStudentNPC(GameManager *game, SceneManager *scene) {
+void spawnStudentNPC(GameManager* game, SceneManager* scene) {
 	// Refer to documentation for specific area bonds for the different areas
 	srand(time(NULL));
 	int areaRandomizer = rand() % 4;
@@ -748,23 +756,23 @@ void spawnStudentNPC(GameManager *game, SceneManager *scene) {
 		switch (areaRandomizer) {
 		case 0: // Study Area
 			areaID = 3;
-			xRandomizer = 4 + rand() % (55-4+1);
-			yRandomizer = 41 + rand() % (51-41+1);
+			xRandomizer = 4 + rand() % (55 - 4 + 1);
+			yRandomizer = 41 + rand() % (51 - 41 + 1);
 			break;
 		case 1: // Gym
 			areaID = 6;
-			xRandomizer = 90 + rand() % (163-90+1);
-			yRandomizer = 39 + rand() % (47-39+1);
+			xRandomizer = 90 + rand() % (163 - 90 + 1);
+			yRandomizer = 39 + rand() % (47 - 39 + 1);
 			break;
 		case 2: // Glecroom
 			areaID = 5;
-			xRandomizer = 68 + rand() % (94-68+1);
-			yRandomizer = 12 + rand() % (25-12+1);
+			xRandomizer = 68 + rand() % (94 - 68 + 1);
+			yRandomizer = 12 + rand() % (25 - 12 + 1);
 			break;
 		case 3: // Library
 			areaID = 1;
-			xRandomizer = 21 + rand() % (45-21+1);
-			yRandomizer = 12 + rand() % (25-12+1);
+			xRandomizer = 21 + rand() % (45 - 21 + 1);
+			yRandomizer = 12 + rand() % (25 - 12 + 1);
 			break;
 		}
 		char* npcDialouges[1] = { '\0' };
@@ -777,7 +785,8 @@ void spawnStudentNPC(GameManager *game, SceneManager *scene) {
 int removeDroppedItem(GameManager* game, SceneManager* scene, int indexOfObjectAhead, int x, int y) {
 	int itemID = 0;
 	game->mapData[indexOfObjectAhead] = 0 + '0';
-	for (int i = 0; i < game->itemNumberInMap; i++) {
+	int i;
+	for (i = 0; i < game->itemNumberInMap; i++) {
 		if (isTwoCoordinatesTheSame(game->itemList[i].coordinate.x, game->itemList[i].coordinate.y, x, y)) {
 			itemID = game->itemList[i].id;
 			game->itemList[i].id = 0;
@@ -789,7 +798,7 @@ int removeDroppedItem(GameManager* game, SceneManager* scene, int indexOfObjectA
 
 }
 
-void moveDroppedItemToInventory(GameManager *game, SceneManager *scene, Player *player, int indexOfObjectAhead, int x, int y) {
+void moveDroppedItemToInventory(GameManager* game, SceneManager* scene, Player* player, int indexOfObjectAhead, int x, int y) {
 	switch (removeDroppedItem(game, scene, indexOfObjectAhead, x, y)) {
 	case 1:
 		addItemInInventory(player, 1, 0, -1, 1);
@@ -825,10 +834,11 @@ void moveDroppedItemToInventory(GameManager *game, SceneManager *scene, Player *
 
 }
 
-int promptHallwayRequirement(GameManager *game, Player *player, SceneManager *scene, int location) {
+int promptHallwayRequirement(GameManager* game, Player* player, SceneManager* scene, int location) {
+	int j;
 	switch (game->hallwayRequirements[location].type) {
 	case 1: // Item
-		for (int j = 0; j < player->itemsNumber; j++) {
+		for (j = 0; j < player->itemsNumber; j++) {
 			if (player->inventory[j].id == game->hallwayRequirements[location].itemID) {
 				return 1;
 			}
@@ -858,7 +868,7 @@ int promptHallwayRequirement(GameManager *game, Player *player, SceneManager *sc
 	return 0;
 }
 
-int canPlayerMoveThere(Player* player, SceneManager *scene, GameManager* game, int x, int y) {
+int canPlayerMoveThere(Player* player, SceneManager* scene, GameManager* game, int x, int y) {
 	// Checks if a player can move to a position forward. Gets the data of the object the player wants to move to and then decide
 	// an action depending on the attached data on that object
 	int indexOfObjectAhead = calculateIndexFromCoordinate(player->position.x + x, player->position.y + y, TOTAL_WIDTH_MAP, MAP_DATASIZE, 0);
@@ -932,7 +942,7 @@ int canPlayerMoveThere(Player* player, SceneManager *scene, GameManager* game, i
 
 void addItemInInventory(Player* player, int id, int type, int statModifier, int quantity) {
 	// Add item to inventory
-	if (player->itemsNumber+1 < 13) {
+	if (player->itemsNumber + 1 < 13) {
 		player->inventory[player->itemsNumber].id = id;
 		player->inventory[player->itemsNumber].type = type;
 		player->inventory[player->itemsNumber].statModifier = statModifier;
@@ -949,10 +959,11 @@ void addItemInInventory(Player* player, int id, int type, int statModifier, int 
 
 void removeItemInInventory(Player* player, int itemIndex) {
 	if (player->inventory[itemIndex].id == 0 || player->inventory[itemIndex].id == -1) { return; }
-	for (int i = 0; i < player->itemsNumber; i++) {
+	int i;
+	for (i = 0; i < player->itemsNumber; i++) {
 		if (i == itemIndex) {
 			player->inventory[i] = player->inventory[i + 1];
-			Items temp = {-1, -1, -1, -1};
+			Items temp = { -1, -1, -1, -1 };
 			player->inventory[i + 1] = temp;
 			break;
 		}
@@ -966,20 +977,20 @@ char* randomDialougeStudent() {
 	srand(time(NULL));
 	int r = 1 + (rand() % 2);
 	switch (r) {
-		case 1:
-			dialouge = (char*)malloc(sizeof(char)*(strlen("Oh, how are you?")));
-			strcpy(dialouge, "Oh, how are you?");
-			break;
-		case 2:
-			dialouge = (char*)malloc(sizeof(char) * (strlen("Hello, good weather today huh.")));
-			strcpy(dialouge, "Hello, good weather today huh.");
-			break;
+	case 1:
+		dialouge = (char*)malloc(sizeof(char) * (strlen("Oh, how are you?")));
+		strcpy(dialouge, "Oh, how are you?");
+		break;
+	case 2:
+		dialouge = (char*)malloc(sizeof(char) * (strlen("Hello, good weather today huh.")));
+		strcpy(dialouge, "Hello, good weather today huh.");
+		break;
 	}
 	return dialouge;
 }
 
 
-int readInput(GameManager* game, SceneManager *scene, Player *player) {
+int readInput(GameManager* game, SceneManager* scene, Player* player) {
 	// Read the char input from the user. Keys are assigned to specific tasks
 	char userInput = _getch();
 	if (scene->isInteractionActive == 0) {
@@ -1077,7 +1088,7 @@ int readInput(GameManager* game, SceneManager *scene, Player *player) {
 }
 
 
-void updateTime(GameManager *game) {
+void updateTime(GameManager* game) {
 	// Update the time with 540 seconds as the starting time in order for the game to start at 9:00
 	game->gameTime.timeInSeconds = 540 + (time(NULL) - game->gameTime.timeWhenDayStarted) * 6;
 	game->gameTime.timeInMinutes = game->gameTime.timeInSeconds / 60;
@@ -1090,7 +1101,7 @@ void updateTime(GameManager *game) {
 	}
 }
 
-void debugMode(Player* player, GameManager* game, SceneManager *scene) {
+void debugMode(Player* player, GameManager* game, SceneManager* scene) {
 	int relativeTopLeftCoordinate[2] = { player->position.x - (CAMERA_WIDTH - 1) / 2, player->position.y - (CAMERA_HEIGHT - 1) / 2 };
 	printf("________________________________________\n");
 	printf("Player Absolute Coordinate: (%d, %d)\n", player->position.x, player->position.y);
@@ -1103,8 +1114,8 @@ void debugMode(Player* player, GameManager* game, SceneManager *scene) {
 	printf("________________________________________\n");
 }
 
-void changeMapState(GameManager *game, int areaID, int isHide) {
-	int x1 = 0, y1 = 0, x2 = 0, y2=0;
+void changeMapState(GameManager* game, int areaID, int isHide) {
+	int x1 = 0, y1 = 0, x2 = 0, y2 = 0;
 	switch (areaID) {
 	case 2: // Set the bounds of the coordinate to the Principal's Office area
 		x1 = 11;
@@ -1127,20 +1138,22 @@ void changeMapState(GameManager *game, int areaID, int isHide) {
 	}
 
 	// Iliterates through the map data equivalent within the set bound and set all their first data index to 2 to indicate it needs to be hidden
-	for (int y = y1; y <= y2; y++) {
-		for (int x = x1; x <= x2; x++) {
+	int y;
+	int x;
+	for (y = y1; y <= y2; y++) {
+		for (x = x1; x <= x2; x++) {
 			game->mapData[calculateIndexFromCoordinate(x, y, TOTAL_WIDTH_MAP, MAP_DATASIZE, 2)] = isHide + '0';
 		}
 	}
 }
 
-int initiateDatas(GameManager *game) {
+int initiateDatas(GameManager* game) {
 	// Open the txt files containing the data for the map and user interface, then  store it into the game manager structure as a member
 	FILE* fptr;
 	fptr = fopen("mapData.txt", "r");
 	if (fptr == NULL) { return 0; };
 
-	game->mapData = (char*)realloc(game->mapData, sizeof(char)*(TOTAL_WIDTH_MAP*TOTAL_HEIGHT_MAP * MAP_DATASIZE));
+	game->mapData = (char*)realloc(game->mapData, sizeof(char) * (TOTAL_WIDTH_MAP * TOTAL_HEIGHT_MAP * MAP_DATASIZE));
 	fgets(game->mapData, TOTAL_WIDTH_MAP * TOTAL_HEIGHT_MAP * MAP_DATASIZE, fptr);
 
 	fptr = fopen("interfaceData.txt", "r");
@@ -1153,7 +1166,7 @@ int initiateDatas(GameManager *game) {
 	return 1;
 }
 
-void initiateGuardNPCspawn(GameManager *game, SceneManager *scene) {
+void initiateGuardNPCspawn(GameManager* game, SceneManager* scene) {
 	char* npcDialouges[3] = { '\0' };
 	npcDialouges[0] = "What do you want Child?";
 	npcDialouges[1] = "I can't tell you.";
@@ -1174,7 +1187,7 @@ void initiateGuardNPCspawn(GameManager *game, SceneManager *scene) {
 
 	srand(time(NULL));
 	int requirementTypeRandomizer = 1 + (rand() % 3);
-	int statRequiredRandomizer = 25 + rand() % (50 - 25+1);
+	int statRequiredRandomizer = 25 + rand() % (50 - 25 + 1);
 	Requirement req[] = { {0, requirementTypeRandomizer, 1, statRequiredRandomizer} };
 	spawnNPC(game, scene, req, 1, 16, 31, -1, 7, npcDialouges, 3);
 }
@@ -1209,7 +1222,7 @@ void initiatePrincipalNPCspawn(GameManager* game, SceneManager* scene) {
 	changeMapState(game, 7, 2);
 }
 
-void initiatePlayerStats(GameManager *game, Player *player, SceneManager *scene) {
+void initiatePlayerStats(GameManager* game, Player* player, SceneManager* scene) {
 	srand(time(NULL));
 	int moneyRandomizer = rand() % 20;
 	int charismaRandomizer = rand() % 10;
@@ -1217,10 +1230,11 @@ void initiatePlayerStats(GameManager *game, Player *player, SceneManager *scene)
 	player->stats.Charisma = 10 + charismaRandomizer;
 }
 
-void deleteCurrentActiveNPC(GameManager *game, SceneManager *scene) {
-	NPC* temp = (NPC*)malloc(sizeof(NPC)*scene->numberOfNPC);
-	for (int i = 0; i < scene->numberOfNPC; i++) {
-		if (isTwoCoordinatesTheSame(scene->currentActiveNPC.coordinate.x, scene->currentActiveNPC.coordinate.y, scene->npcList[i].coordinate.x, 
+void deleteCurrentActiveNPC(GameManager* game, SceneManager* scene) {
+	NPC* temp = (NPC*)malloc(sizeof(NPC) * scene->numberOfNPC);
+	int i;
+	for (i = 0; i < scene->numberOfNPC; i++) {
+		if (isTwoCoordinatesTheSame(scene->currentActiveNPC.coordinate.x, scene->currentActiveNPC.coordinate.y, scene->npcList[i].coordinate.x,
 			scene->npcList[i].coordinate.y) == 1) {
 			temp[i].id = -1;
 			continue;
@@ -1229,18 +1243,19 @@ void deleteCurrentActiveNPC(GameManager *game, SceneManager *scene) {
 	}
 	scene->numberOfNPC -= 1;
 	scene->npcList = (NPC*)realloc(scene->npcList, sizeof(NPC) * scene->numberOfNPC);
-	for (int i = 0, j = 0; i < scene->numberOfNPC; i++) {
+	int j = 0;
+	for (i = 0, j = 0; i < scene->numberOfNPC; i++) {
 		if (temp[i].id == -1) {
 			j = 1;
 		}
-		scene->npcList[i] = temp[i+j];
+		scene->npcList[i] = temp[i + j];
 	}
 
 	game->mapData[calculateIndexFromCoordinate(scene->currentActiveNPC.coordinate.x, scene->currentActiveNPC.coordinate.y, TOTAL_WIDTH_MAP, MAP_DATASIZE, 0)] = 0 + '0';
 	game->mapData[calculateIndexFromCoordinate(scene->currentActiveNPC.coordinate.x, scene->currentActiveNPC.coordinate.y, TOTAL_WIDTH_MAP, MAP_DATASIZE, 2)] = 1 + '0';
 }
 
-void reducePlayerStatRandomly(GameManager *game, SceneManager *scene, Player *player) {
+void reducePlayerStatRandomly(GameManager* game, SceneManager* scene, Player* player) {
 	if (game->gameTime.timeSnapshot[1] == 0) {
 		game->gameTime.timeSnapshot[1] = time(NULL);
 	}
@@ -1254,9 +1269,9 @@ void reducePlayerStatRandomly(GameManager *game, SceneManager *scene, Player *pl
 			switch (statLosingRandomizer) {
 			case 1: // Loss of PHP
 				scene->lostPHP = moneyLossRandomizer;
-				if (player->stats.Pesos - moneyLossRandomizer < 0) { 
+				if (player->stats.Pesos - moneyLossRandomizer < 0) {
 					player->stats.Pesos = 0;
-					break; 
+					break;
 				}
 				player->stats.Pesos -= moneyLossRandomizer;
 				break;
@@ -1275,12 +1290,13 @@ void reducePlayerStatRandomly(GameManager *game, SceneManager *scene, Player *pl
 	}
 }
 
-void spawnItem(GameManager *game, SceneManager *scene, DroppedItem item) {
+void spawnItem(GameManager* game, SceneManager* scene, DroppedItem item) {
 	if (game->mapData[calculateIndexFromCoordinate(item.coordinate.x, item.coordinate.y, TOTAL_WIDTH_MAP, MAP_DATASIZE, 0)] == 9 + '0') { return; }
 	if (game->mapData[calculateIndexFromCoordinate(item.coordinate.x, item.coordinate.y, TOTAL_WIDTH_MAP, MAP_DATASIZE, 0)] == 1 + '0') { return; }
 	game->mapData[calculateIndexFromCoordinate(item.coordinate.x, item.coordinate.y, TOTAL_WIDTH_MAP, MAP_DATASIZE, 0)] = 1 + '0';
 	++game->itemNumberInMap;
-	for (int i = 0; i < game->itemNumberInMap; i++) {
+	int i;
+	for (i = 0; i < game->itemNumberInMap; i++) {
 		if (game->itemList[i].id == 0) {
 			game->itemList[i] = item;
 			break;
@@ -1290,7 +1306,7 @@ void spawnItem(GameManager *game, SceneManager *scene, DroppedItem item) {
 }
 
 
-void spawnGuardKey(GameManager *game, SceneManager *scene) {
+void spawnGuardKey(GameManager* game, SceneManager* scene) {
 	srand(time(NULL));
 	int spawnRandomizer = rand() % 3;
 	DroppedItem item;
@@ -1317,42 +1333,45 @@ void spawnGuardKey(GameManager *game, SceneManager *scene) {
 void changeAreaDataState(GameManager* game, int x, int y, int dataState) {
 	game->mapData[calculateIndexFromCoordinate(x, y, TOTAL_WIDTH_MAP, MAP_DATASIZE, 0)] = dataState + '0';
 }
-void changeAreaMoveableState(GameManager *game, int x1, int y1, int x2, int y2, int isBlock, int dataState) {
-	for (int i = y1; i <= y2; i++) {
-		for (int j = x1; j <= x2; j++) {
+void changeAreaMoveableState(GameManager* game, int x1, int y1, int x2, int y2, int isBlock, int dataState) {
+	int i;
+	int j;
+	for (i = y1; i <= y2; i++) {
+		for (j = x1; j <= x2; j++) {
 			game->mapData[calculateIndexFromCoordinate(j, i, TOTAL_WIDTH_MAP, MAP_DATASIZE, 2)] = isBlock + '0';
 			changeAreaDataState(game, j, i, dataState);
 		}
 	}
 }
 
-void initiateHallwayRequirements(GameManager *game) {
+void initiateHallwayRequirements(GameManager* game) {
 	int typeRandomizer = 0;
 	int statRequirementRandomizer = 0;
 	int itemTypeRandomizer = 0;
-	for (int i = 0; i < 3; i++) {
-		srand(time(NULL) + (i*time(NULL)));
+	int i;
+	for (i = 0; i < 3; i++) {
+		srand(time(NULL) + (i * time(NULL)));
 		typeRandomizer = 1 + rand() % 3;
 		statRequirementRandomizer = 40 + rand() % 41; // 40 to 80
 		switch (typeRandomizer) {
-			case 1: // Item Requirement
-				itemTypeRandomizer = 2 + rand() % 5; // 2 to 6
-				game->hallwayRequirements[i].type = 1;
-				game->hallwayRequirements[i].itemID = itemTypeRandomizer;
-				break;
-			case 2: // PHP Requirement
-				game->hallwayRequirements[i].type = 2;
-				game->hallwayRequirements[i].statRequired = statRequirementRandomizer;
-				break;
-			case 3: // CHA Requirement
-				game->hallwayRequirements[i].type = 3;
-				game->hallwayRequirements[i].statRequired = statRequirementRandomizer;
-				break;
+		case 1: // Item Requirement
+			itemTypeRandomizer = 2 + rand() % 5; // 2 to 6
+			game->hallwayRequirements[i].type = 1;
+			game->hallwayRequirements[i].itemID = itemTypeRandomizer;
+			break;
+		case 2: // PHP Requirement
+			game->hallwayRequirements[i].type = 2;
+			game->hallwayRequirements[i].statRequired = statRequirementRandomizer;
+			break;
+		case 3: // CHA Requirement
+			game->hallwayRequirements[i].type = 3;
+			game->hallwayRequirements[i].statRequired = statRequirementRandomizer;
+			break;
 		}
 	}
 }
 
-void itemRandomSpawning(GameManager *game, Player *player, SceneManager *scene) {
+void itemRandomSpawning(GameManager* game, Player* player, SceneManager* scene) {
 	srand(time(NULL));
 	int areaRandomizer = rand() % 6;
 	int itemRandomizer = 2 + rand() % 9; // 2 to 10
@@ -1363,7 +1382,8 @@ void itemRandomSpawning(GameManager *game, Player *player, SceneManager *scene) 
 		game->gameTime.timeSnapshot[7] = time(NULL);
 	}
 	if (game->hasRequiredItemSpawned < 3) {
-		for (int i = game->hasRequiredItemSpawned; i < 3; i++) {
+		int i;
+		for (i = game->hasRequiredItemSpawned; i < 3; i++) {
 			if (game->hallwayRequirements[i].type == 1) {
 				Item.id = game->hallwayRequirements[i].itemID;
 				++game->hasRequiredItemSpawned;
@@ -1373,7 +1393,7 @@ void itemRandomSpawning(GameManager *game, Player *player, SceneManager *scene) 
 	}
 	if (time(NULL) - game->gameTime.timeSnapshot[7] >= 10) {
 		switch (areaRandomizer) {
-		case 0: 
+		case 0:
 			Item.coordinate.x = 1;
 			Item.coordinate.y = 29;
 			spawnItem(game, scene, Item);
@@ -1383,12 +1403,12 @@ void itemRandomSpawning(GameManager *game, Player *player, SceneManager *scene) 
 			Item.coordinate.y = 39;
 			spawnItem(game, scene, Item);
 			break;
-		case 2: 
+		case 2:
 			Item.coordinate.x = 117;
 			Item.coordinate.y = 44;
 			spawnItem(game, scene, Item);
 			break;
-		case 3: 
+		case 3:
 			Item.coordinate.x = 70;
 			Item.coordinate.y = 15;
 			spawnItem(game, scene, Item);
@@ -1405,11 +1425,11 @@ void itemRandomSpawning(GameManager *game, Player *player, SceneManager *scene) 
 			break;
 		}
 		game->gameTime.timeSnapshot[7] = 0;
-		
+
 	}
 }
 
-void printMainMenu(GameManager *game) {
+void printMainMenu(GameManager* game) {
 	printf("                                    / ___/____  / ____ \n");
 	printf("                                    \\__ \\/ __ \\/ / __ \\ \n");
 	printf("                                   ___/ / /_/ / / /_/ / \n");
@@ -1438,7 +1458,7 @@ void printMainMenu(GameManager *game) {
 	game->gameState = 1;
 }
 
-void initiateGame(GameManager *game, Player *player, SceneManager *scene) {
+void initiateGame(GameManager* game, Player* player, SceneManager* scene) {
 	updateCameraRelativeCoordinate(game, &player);
 	updateCurrentActivePrompt(scene, "Objective: Meet the Principal", -1, 0);
 	printf("\33[?25l"); // Hide the cursor
@@ -1459,7 +1479,7 @@ void initiateGame(GameManager *game, Player *player, SceneManager *scene) {
 	}
 }
 
-void tryAgainScreen(GameManager *game) {
+void tryAgainScreen(GameManager* game) {
 	clearConsole();
 	printf("\t\t\t     ______\n");
 	printf("\t\t\t .-\"      \"-.\n");
