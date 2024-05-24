@@ -832,11 +832,6 @@ int promptHallwayRequirement(GameManager *game, Player *player, SceneManager *sc
 			if (player->inventory[location].id == game->hallwayRequirements[location].itemID) {
 				return 1;
 			}
-			else {
-				game->itemIDRequired = game->hallwayRequirements[location].itemID;
-				updateCurrentActivePrompt(scene, ANSI_COLOR_RED "You need something to go through!" ANSI_COLOR_RESET, 0, 12);
-				return 0;
-			}
 		}
 		game->itemIDRequired = game->hallwayRequirements[location].itemID;
 		updateCurrentActivePrompt(scene, ANSI_COLOR_RED "You need something to go through!" ANSI_COLOR_RESET, 0, 12);
