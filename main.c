@@ -829,7 +829,7 @@ int promptHallwayRequirement(GameManager *game, Player *player, SceneManager *sc
 	switch (game->hallwayRequirements[location].type) {
 	case 1: // Item
 		for (int j = 0; j < player->itemsNumber; j++) {
-			if (player->inventory[location].id == game->hallwayRequirements[location].itemID) {
+			if (player->inventory[j].id == game->hallwayRequirements[location].itemID) {
 				return 1;
 			}
 		}
