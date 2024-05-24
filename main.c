@@ -704,7 +704,7 @@ void changeStatIfRequirementMet(GameManager* game, SceneManager* scene, Player* 
 
 void talkToStudentAndExit(GameManager* game, SceneManager* scene, Player* player, int dialougeID) {
 	srand(time(NULL));
-	int statRandomizer = 2 + (rand() % 5);
+	int statRandomizer = 2 + (rand() % 15);
 	player->stats.Charisma += statRandomizer;
 	game->gameTime.timeWhenDayStarted -= 10;
 	game->gameTime.timeSnapshot[2] = time(NULL);
@@ -715,7 +715,7 @@ void talkToStudentAndExit(GameManager* game, SceneManager* scene, Player* player
 
 void begToStudentAndExit(GameManager* game, SceneManager* scene, Player* player, int dialougeID) {
 	srand(time(NULL));
-	int statRandomizer = 2 + (rand() % 5);
+	int statRandomizer = 2 + (rand() % 15);
 	player->stats.Pesos += statRandomizer;
 	if (player->stats.mentalHealth - statRandomizer < 0) {
 		player->stats.mentalHealth = 0;
@@ -1485,7 +1485,6 @@ int main(void) {
 			renderUI(&game, &scene, &player);
 		}
 		else if (game.gameState == 1) { // Main game
-			if (readInput(&game, &scene, &player) == -1) { game.gameState = 3; clearConsole(); continue; }
 			clearConsole();
 			if (game.debugMode == 1) { debugMode(&player, &game, &scene); }
 			renderUI(&game, &scene, &player);
@@ -1493,6 +1492,7 @@ int main(void) {
 			spawnStudentNPC(&game, &scene);
 			itemRandomSpawning(&game, &player, &scene);
 			updateTime(&game);
+			if (readInput(&game, &scene, &player) == -1) { game.gameState = 3; clearConsole(); continue; }
 		}
 		else if (game.gameState == 2) { // Try Again Screen
 			tryAgainScreen(&game);
