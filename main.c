@@ -618,7 +618,7 @@ void renderUI(GameManager *game, SceneManager *scene, Player* player) {
 	}
 	if (scene->gainCHA != 0) {
 		printf(ANSI_COLOR_GREEN "You gained confidence by talking with a student, but time passed " ANSI_COLOR_RESET);
-		printf(ANSI_COLOR_GREEN "(-%d CHA)" ANSI_COLOR_RESET, scene->gainCHA);
+		printf(ANSI_COLOR_GREEN "(+%d CHA)" ANSI_COLOR_RESET, scene->gainCHA);
 		printf(ANSI_COLOR_RED " (+1 HR)\n" ANSI_COLOR_RESET);
 		if (time(NULL) - game->gameTime.timeSnapshot[2] >= 5) {
 			scene->gainCHA = 0;
@@ -1410,12 +1410,30 @@ void itemRandomSpawning(GameManager *game, Player *player, SceneManager *scene) 
 }
 
 void printMainMenu(GameManager *game) {
-	printf("SOLO\n");
-	printf("INFILTRATION TO\n");
-	printf("MEET THE\n");
-	printf("PRINCIPAL\n");
-	printf("\n\n\n");
-	printf("[Press any button to start]");
+	printf("                                    / ___/____  / ____ \n");
+	printf("                                    \\__ \\/ __ \\/ / __ \\ \n");
+	printf("                                   ___/ / /_/ / / /_/ / \n");
+	printf("                                  /____/\\____/_/\\____/  \n");
+
+	printf("                            ____      _____ ____             __  _           \n");
+	printf("                           /  _____  / __(_/ / /__________ _/ /_(_____  ____ \n");
+	printf("                          / // __ \\/ /_/ / / __/ ___/ __ `/ __/ / __ \\/ __ \\\n");
+	printf("                         _/ // / / / __/ / / /_/ /  / /_/ / /_/ / /_/ / / / /\n");
+	printf("                        /___/_/ /_/_/ /_/_/\\__/_/   \\__,_/\\__/_/\\____/_/ /_/ \n");
+
+	printf("                                     __           __  ___          __ \n");
+	printf("                                    / /_____     /  |/  ___  ___  / /_\n");
+	printf("                                   / __/ __ \\   / /|_/ / _ \\/ _ \\/ __/\n");
+	printf("                                  / /_/ /_/ /  / /  / /  __/  __/ /_  \n");
+	printf("                                  \\__/\\____/  /_/  /_/\\___/\\___/\\__/  \n");
+
+	printf("                                __  __            ____       _            _             __\n");
+	printf("                               / /_/ /_  ___     / __ \\_____(_____  _____(_____  ____ _/ /\n");
+	printf("                              / __/ __ \\/ _ \\   / /_/ / ___/ / __ \\/ ___/ / __ \\/ __ `/ / \n");
+	printf("                             / /_/ / / /  __/  / ____/ /  / / / / /__/ / /_/ / /_/ / /  /\n");
+	printf("                             \\__/_/ /_/\\___/  /_/   /_/  /_/_/ /_/\___/_/ .___/\\__,_/_/_//\n");
+	printf("                                                                       /_/               \n");
+	printf("\t\t\t\t[Press any button to start]");
 	char chr = _getch();
 	game->gameState = 1;
 }
@@ -1443,9 +1461,21 @@ void initiateGame(GameManager *game, Player *player, SceneManager *scene) {
 
 void tryAgainScreen(GameManager *game) {
 	clearConsole();
-	printf("Oh no... you ran out of time...\n\n\n\n");
-	printf("[Press Space to Retry]\n");
-	printf("[Press n to exit]\n");
+	printf("\t\t\t     ______\n");
+	printf("\t\t\t .-\"      \"-.\n");
+	printf("\t\t\t/            \\\n");
+	printf("\t\t\t|              |\n");
+	printf("\t\t\t|,  .-.  .-.  ,|\n");
+	printf("\t\t\t| )(__/  \\__)( |\n");
+	printf("\t\t\t|/     /\\     \\|\n");
+	printf("\t\t\t(_     ^^     _)\n");
+	printf("\t\t\t \\__|IIIIII|__/\n");
+	printf("\t\t\t  | \\IIIIII/ |\n");
+	printf("\t\t\t  \\          /\n");
+	printf("\t\t\t   `--------`\n");
+	printf("\t\t\tOh no... you ran out of time...\n\n\n\n");
+	printf("\t\t\t[Press Space to Retry]\n");
+	printf("\t\t\t[Press n to exit]\n");
 	char userInput = _getch();
 	if (userInput == ' ') {
 		game->gameState = 3;
