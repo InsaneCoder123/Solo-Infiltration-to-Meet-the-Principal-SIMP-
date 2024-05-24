@@ -958,16 +958,18 @@ void addItemInInventory(Player* player, int id, int type, int statModifier, int 
 }
 
 void removeItemInInventory(Player* player, int itemIndex) {
-	if (player->inventory[itemIndex].id == 0 || player->inventory[itemIndex].id == -1) { return; }
+	if (player->inventory[itemIndex].id == 0) { return; }
 	int i;
+	int j = 0;
+	Items item[13] = player->inventory;
+	Items temp = { 0, 0, 0, 0 };
 	for (i = 0; i < player->itemsNumber; i++) {
 		if (i == itemIndex) {
-			player->inventory[i] = player->inventory[i + 1];
-			Items temp = { -1, -1, -1, -1 };
-			player->inventory[i + 1] = temp;
-			break;
+			j = 1;
 		}
+		player->inventory[i] = item[i+j];
 	}
+	player->inventory[player->itemsNumber] = temp;
 	--player->itemsNumber;
 }
 
