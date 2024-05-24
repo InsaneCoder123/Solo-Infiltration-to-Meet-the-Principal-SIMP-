@@ -1355,14 +1355,14 @@ void initiateHallwayRequirements(GameManager *game) {
 void itemRandomSpawning(GameManager *game, Player *player, SceneManager *scene) {
 	srand(time(NULL));
 	int areaRandomizer = rand() % 6;
-	int itemRandomizer = 2 + rand() % 9; // 2 to 9
+	int itemRandomizer = 2 + rand() % 9; // 2 to 10
 	int priorityItemRandomizer = rand() % 3;
 	DroppedItem Item;
 	Item.id = itemRandomizer;
 	if (game->gameTime.timeSnapshot[7] == 0) {
 		game->gameTime.timeSnapshot[7] = time(NULL);
 	}
-	if (game->hasRequiredItemSpawned < 3 && priorityItemRandomizer == 0) {
+	if (game->hasRequiredItemSpawned < 3) {
 		for (int i = game->hasRequiredItemSpawned; i < 3; i++) {
 			if (game->hallwayRequirements[i].type == 1) {
 				Item.id = game->hallwayRequirements[i].itemID;
@@ -1514,7 +1514,7 @@ int main(void) {
 			renderUI(&game, &scene, &player);
 		}
 		else if (game.gameState == 1) { // Main game
-			clearConsole();
+			clearConsole();Fixed the hallway requirement not reading item in inventory
 			if (game.debugMode == 1) { debugMode(&player, &game, &scene); }
 			renderUI(&game, &scene, &player);
 			reducePlayerStatRandomly(&game, &scene, &player);
