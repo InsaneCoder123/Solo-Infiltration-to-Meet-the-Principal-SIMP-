@@ -961,7 +961,10 @@ void removeItemInInventory(Player* player, int itemIndex) {
 	if (player->inventory[itemIndex].id == 0) { return; }
 	int i;
 	int j = 0;
-	Items item[13] = player->inventory;
+	Items item[13];
+	for (i = 0; i < 13; i++){
+		item[i] = player->inventory[i];
+	}
 	Items temp = { 0, 0, 0, 0 };
 	for (i = 0; i < player->itemsNumber; i++) {
 		if (i == itemIndex) {
