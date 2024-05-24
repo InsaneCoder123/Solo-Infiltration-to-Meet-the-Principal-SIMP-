@@ -1514,7 +1514,7 @@ int main(void) {
 			renderUI(&game, &scene, &player);
 		}
 		else if (game.gameState == 1) { // Main game
-			clearConsole();Fixed the hallway requirement not reading item in inventory
+			clearConsole(); //Fixed the hallway requirement not reading item in inventory
 			if (game.debugMode == 1) { debugMode(&player, &game, &scene); }
 			renderUI(&game, &scene, &player);
 			reducePlayerStatRandomly(&game, &scene, &player);
